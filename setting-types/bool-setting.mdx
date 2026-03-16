@@ -1,0 +1,62 @@
+---
+title: 'BoolSetting'
+description: 'A setting type for true/false boolean values, such as toggles and checkboxes.'
+keywords: ['bool', 'boolean', 'toggle', 'setting', 'BoolSetting']
+---
+
+`BoolSetting` is the base class for settings that hold a `true` or `false` value. Use it for any on/off or enabled/disabled preference.
+
+## Class definition
+
+```csharp BoolSetting.cs
+namespace Eql.Domain.Common.Settings
+{
+    public abstract class BoolSetting : BaseSetting<bool> { }
+}
+```
+
+## Inheritance chain
+
+```
+YourSetting → BoolSetting → BaseSetting<bool> → ISetting<bool> → ISetting
+```
+
+## Example implementation
+
+The following is the fullscreen mode setting from `GraphicsSettings.cs`:
+
+```csharp GraphicsSettings.cs
+[Metadata("Fullscreen Mode", "Enable fullscreen mode",
+    SettingCategory.Graphics, "Display", UIPreference.ToggleGroup, 2)]
+public sealed class FullscreenSetting : BoolSetting
+{
+    public override string Key => "graphics.fullscreen";
+    public override bool DefaultValue => true;
+}
+```
+
+## Reading, writing, and subscribing
+
+```csharp
+// Read the current value
+bool isFullscreen = fullscreenSetting.Value;
+
+// Write a new value
+fullscreenSetting.Value = false;
+
+// Subscribe to changes
+fullscreenSetting.OnValueChanged += (oldValue, newValue) =>
+{
+    ApplyFullscreen(newValue);
+};
+```
+
+## Notes
+
+<Note>
+  `BoolSetting` does not perform any range clamping — the value is always either `true` or `false`.
+</Note>
+
+<Tip>
+  The typical `UIPreference` for a `BoolSetting` is `ToggleGroup` or `CheckboxGroup`, which renders the setting as a toggle or checkbox in the settings UI.
+</Tip>

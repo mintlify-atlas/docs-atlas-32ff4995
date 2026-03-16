@@ -1,0 +1,88 @@
+---
+title: 'ISettingBinder'
+description: 'Interface for objects that bind a setting to a UI element and keep them in sync.'
+keywords: ['ISettingBinder', 'binder', 'interface', 'UI', 'API reference']
+---
+
+`ISettingBinder` is the contract every binder must satisfy. A binder connects a single [`ISetting`](/api/isetting) to a single [`ISettingUIElement`](/api/isetting-ui-element), propagating value changes in both directions.
+
+## Namespace
+
+```csharp
+namespace Eql.Common.Services.Settings.UI.Binders
+```
+
+## Interface definition
+
+```csharp ISettingBinder.cs
+public interface ISettingBinder
+{
+    int Priority { get; }
+    bool CanBind(ISetting setting, ISettingUIElement uiElement);
+    void Bind(ISetting setting, ISettingUIElement uiElement);
+    void Unbind();
+}
+```
+
+## Members
+
+<ResponseField name="Priority" type="int" required>
+  Determines precedence when multiple binders claim they can handle the same setting/UI-element pair. Higher values take precedence. The default in [`BaseSettingBinder<TUIElement, TValue>`](/api/base-setting-binder) is `100`.
+</ResponseField>
+
+<ResponseField name="CanBind" type="bool">
+  Returns `true` if this binder is capable of handling the given `setting` and `uiElement` combination. Called by the binder registry before `Bind`.
+
+  <ParamField path="setting" type="ISetting" required>
+    The setting to evaluate.
+  </ParamField>
+  <ParamField path="uiElement" type="ISettingUIElement" required>
+    The UI element to evaluate.
+  </ParamField>
+</ResponseField>
+
+<ResponseField name="Bind" type="void">
+  Establishes the two-way connection between a setting and a UI element. After this call the UI should reflect the current setting value, and user interaction with the UI should update the setting.
+
+  <ParamField path="setting" type="ISetting" required>
+    The setting to bind.
+  </ParamField>
+  <ParamField path="uiElement" type="ISettingUIElement" required>
+    The UI element to bind to.
+  </ParamField>
+</ResponseField>
+
+<ResponseField name="Unbind" type="void">
+  Tears down the connection established by `Bind`. Removes event listeners and releases references to the setting and UI element.
+</ResponseField>
+
+## Implementation example
+
+For most cases, extend [`BaseSettingBinder<TUIElement, TValue>`](/api/base-setting-binder), which implements `CanBind`, `Bind`, and `Unbind` for you.
+
+```csharp
+using Eql.Common.Services.Settings.UI.Binders;
+
+// Minimal direct implementation
+public class MyToggleBinder : ISettingBinder
+{
+    public int Priority => 100;
+
+    public bool CanBind(ISetting setting, ISettingUIElement uiElement)
+        => setting is ISetting<bool> && uiElement is MyToggleElement;
+
+    public void Bind(ISetting setting, ISettingUIElement uiElement)
+    {
+        // Cast, set initial value, subscribe to events
+    }
+
+    public void Unbind()
+    {
+        // Remove listeners, null references
+    }
+}
+```
+
+<Warning>
+  Always implement `Unbind` to remove all event listeners. Failing to do so creates memory leaks and causes stale callbacks to fire after the UI element is destroyed.
+</Warning>

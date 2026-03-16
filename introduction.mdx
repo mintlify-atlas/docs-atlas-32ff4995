@@ -1,0 +1,81 @@
+---
+title: "Introduction"
+description: "A simple extensible settings system for Unity with automatic registration, UI binding, and metadata support."
+---
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get your first setting up and running in minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Add the system to your Unity project
+  </Card>
+  <Card title="Core Concepts" icon="book" href="/concepts/settings-overview">
+    Learn how settings, metadata, and categories work
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/isetting">
+    Explore every class, interface, and service
+  </Card>
+</CardGroup>
+
+## What is Simple Settings System?
+
+Simple Settings System is a Unity framework for managing game settings. It uses C# reflection to automatically discover and register every class that implements `ISetting` — no `Register()` calls or installer boilerplate required beyond a single Zenject binding.
+
+Once registered, each setting exposes a typed `Value` property with change events, automatic range clamping, and rollback on failure. A companion UI system maps settings to prefab-based widgets (sliders, dropdowns, toggles, buttons, input fields) and keeps them in sync through a priority-based binder registry.
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Auto-registration" icon="wand-magic-sparkles">
+    `SettingsService` scans every loaded assembly on `Initialize()` and instantiates all concrete `ISetting` types — no manual wiring.
+  </Card>
+  <Card title="Typed setting base classes" icon="layer-group">
+    `BoolSetting`, `IntSetting`, `FloatSetting`, `StringSetting`, `EnumSetting<T>`, and `CommandSetting` cover the most common value types out of the box.
+  </Card>
+  <Card title="Metadata attribute" icon="tag">
+    Decorate any setting class with `[Metadata]` to declare its display name, description, category, subcategory, preferred UI widget, sort order, visibility, and persistence.
+  </Card>
+  <Card title="Range clamping" icon="sliders">
+    `BaseRangeSetting<T>` automatically clamps values between `MinValue` and `MaxValue` before firing the change event.
+  </Card>
+  <Card title="UI binding system" icon="link">
+    `BinderRegistry` matches settings to UI elements via `CanBind()` and creates fresh binder instances on demand. Implement `ISettingBinder` to support custom widgets.
+  </Card>
+  <Card title="Category & subcategory panels" icon="folder-tree">
+    `DemoSettingsPanel` drives two `TMP_Dropdown` menus — one for `SettingCategory` and one for subcategory — and builds the item list asynchronously using `ItemFactory`.
+  </Card>
+</CardGroup>
+
+## Architecture overview
+
+```
+SettingsService (Zenject singleton)
+  └─ AutoRegister() — reflection scan on Initialize()
+       └─ ISetting implementations → registered by Type and Key
+
+BaseSetting<T> (abstract)
+  ├─ Value (get/set, thread-safe, rollback on error)
+  ├─ Changed (UnityEvent<T>)
+  └─ Metadata (from [MetadataAttribute] or fallback)
+
+BaseRangeSetting<T> : BaseSetting<T>
+  └─ clamps Value between MinValue and MaxValue
+
+UI Layer
+  ├─ ISettingUIElement — marker interface for prefab components
+  ├─ ISettingBinder — Bind / Unbind / CanBind / Priority
+  ├─ BinderRegistry — priority-sorted list, FindBinder()
+  ├─ BaseSettingBinder<TUIElement, TValue> — generic base
+  └─ ItemFactory — async prefab loading via IResourceService
+```
+
+## Dependencies
+
+The system requires three packages to be present in your Unity project:
+
+| Package | Purpose |
+|---------|---------|
+| **Zenject** | Dependency injection container; `SettingsService` is installed as a Zenject singleton |
+| **TextMeshPro** | UI text for the demo settings panel dropdowns and item labels |
+| **UniTask** | Async/await support for `ItemFactory.CreateAsync()` |

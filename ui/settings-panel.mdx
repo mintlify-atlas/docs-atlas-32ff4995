@@ -1,0 +1,122 @@
+---
+title: "Settings panel"
+description: "How DemoSettingsPanel drives category and subcategory dropdowns and builds the item list asynchronously."
+---
+
+`DemoSettingsPanel` is a ready-to-use MonoBehaviour that drives a two-dropdown settings UI. It uses `SettingsService` to query settings by category and `ItemFactory` to create the corresponding item prefabs at runtime.
+
+<Warning>
+  `DemoSettingsPanel` is a **demo implementation** intended to illustrate the full flow. For production, copy it as a starting point and customise the layout, transitions, and lifecycle to match your game's UI system.
+</Warning>
+
+## Two-dropdown approach
+
+The panel exposes two `TMP_Dropdown` controls:
+
+1. **Category dropdown** — lists all `SettingCategory` values. Selecting a category refreshes the subcategory dropdown.
+2. **Subcategory dropdown** — lists the distinct subcategory strings found among the settings in the selected category. Selecting a subcategory rebuilds the item list.
+
+This keeps the item list focused and avoids displaying every setting at once.
+
+```
+Category dropdown  ──►  OnCategoryChanged()
+                              │
+                              ▼
+                   GetByCategory(category)
+                              │
+                              ▼
+                   RebuildDropdownSubCategory(settings)
+                              │
+                         (user picks subcategory)
+                              │
+                              ▼
+                   InstantiateItemsAsync(filteredSettings)
+```
+
+## Injection
+
+`DemoSettingsPanel` uses Zenject constructor-style injection via a private `[Inject]` method:
+
+```csharp
+[Inject]
+private void Construct(SettingsService settingsService, IResourceService resourceService)
+{
+    m_SettingsService = settingsService;
+    m_ItemFactory = new ItemFactory(resourceService);
+}
+```
+
+Bind both `SettingsService` and `IResourceService` in your Zenject installer before the panel's `GameObject` is active. Because Zenject resolves `[Inject]` methods after all bindings are resolved, the panel is guaranteed to have both dependencies before `Start()` runs.
+
+## Async item instantiation
+
+When the subcategory selection changes, the panel tears down existing items and calls:
+
+```csharp
+private async UniTask InstantiateItemsAsync(IEnumerable<ISetting> settings)
+{
+    foreach (var setting in settings)
+    {
+        var metadata = SettingMeta.GetMetadata(setting);
+        var item = await m_ItemFactory.CreateAsync(
+            setting,
+            metadata,
+            m_Content,
+            destroyCancellationToken);
+    }
+}
+```
+
+Each `CreateAsync` call loads a prefab from Resources, instantiates it under `m_Content`, and calls `item.Initialize(setting, metadata)`. Items appear in the order the `settings` enumerable produces them — use `Metadata.SortOrder` to control that order.
+
+Passing `destroyCancellationToken` ensures that any in-flight `CreateAsync` calls are cancelled if the panel `GameObject` is destroyed, preventing errors from accessing destroyed components.
+
+## Setting up in a Unity scene
+
+<Steps>
+  <Step title="Add the panel to your canvas">
+    Create a `GameObject` on your UI canvas and attach the `DemoSettingsPanel` component.
+  </Step>
+  <Step title="Assign the serialized fields">
+    In the Inspector, assign:
+    - **Dropdown Category** — a `TMP_Dropdown` for top-level categories.
+    - **Dropdown Subcategory** — a `TMP_Dropdown` for subcategories within the selected category.
+    - **Content** — a `RectTransform` (typically a `VerticalLayoutGroup`) where item prefabs will be instantiated.
+  </Step>
+  <Step title="Bind dependencies in Zenject">
+    In your scene's `SceneContext` installer, ensure both `SettingsService` and your `IResourceService` implementation are bound:
+
+    ```csharp
+    Container.BindInterfacesAndSelfTo<SettingsService>().AsSingle();
+    Container.Bind<IResourceService>().To<YourResourceService>().AsSingle();
+    ```
+  </Step>
+  <Step title="Register your binders">
+    Before the panel populates its first category, register any custom binders:
+
+    ```csharp
+    BinderRegistry.Register(new MyCustomBinder());
+    ```
+
+    This is best done in an installer that runs before the panel's first frame.
+  </Step>
+  <Step title="Play and verify">
+    Enter Play mode. The category dropdown should populate from `SettingsService`. Selecting a category fills the subcategory dropdown; selecting a subcategory instantiates the matching item prefabs under **Content**.
+  </Step>
+</Steps>
+
+## Grouping settings by subcategory
+
+The panel calls `m_SettingsService.GetByCategory(category)` to fetch all settings in the selected category, then groups them by their `Metadata.Subcategory` string to populate the subcategory dropdown. Only settings whose subcategory matches the current selection are passed to `InstantiateItemsAsync`.
+
+To control which subcategory a setting appears in, set the `subcategory` parameter on its `[Metadata]` attribute:
+
+```csharp
+[Metadata(
+    displayName: "Mouse Sensitivity",
+    category: SettingCategory.Input,
+    subcategory: "Mouse",
+    uiPreference: UIPreference.SliderStepper
+)]
+public class MouseSensitivitySetting : FloatSetting { ... }
+```

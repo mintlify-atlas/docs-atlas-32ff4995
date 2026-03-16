@@ -1,0 +1,84 @@
+---
+title: "Metadata"
+description: "Data class holding display and behavior information for a setting"
+---
+
+`Metadata` is an immutable data object that describes how a setting should be displayed and persisted. Instances are created by `MetadataAttribute` at compile time or by `SettingMeta` at runtime.
+
+**Namespace:** `Eql.Domain.Common.Settings`
+
+## Constructor
+
+```csharp
+public Metadata(
+    string displayName,
+    string displayDescription = "",
+    SettingCategory category = SettingCategory.General,
+    string subCategory = "",
+    UIPreference uiPreference = UIPreference.Auto,
+    int order = 0,
+    bool isVisible = true,
+    bool isSavable = true
+)
+```
+
+Only `displayName` is required. All other parameters have defaults.
+
+## Properties
+
+<ResponseField name="DisplayName" type="string" required>
+  Human-readable label shown in UI panels and debug tools.
+</ResponseField>
+
+<ResponseField name="DisplayDescription" type="string">
+  Optional tooltip or subtitle text. Defaults to an empty string.
+</ResponseField>
+
+<ResponseField name="Category" type="SettingCategory">
+  Top-level group this setting belongs to. Defaults to `SettingCategory.General`.
+</ResponseField>
+
+<ResponseField name="SubCategory" type="string">
+  Optional secondary grouping within a category. Defaults to an empty string.
+</ResponseField>
+
+<ResponseField name="UIPreference" type="UIPreference">
+  Preferred widget type for rendering this setting. Defaults to `UIPreference.Auto`.
+</ResponseField>
+
+<ResponseField name="Order" type="int">
+  Sort position within a category or subcategory. Lower values appear first. Defaults to `0`.
+</ResponseField>
+
+<ResponseField name="IsVisible" type="bool">
+  Whether this setting appears in UI panels. Defaults to `true`.
+</ResponseField>
+
+<ResponseField name="IsSavable" type="bool">
+  Whether this setting is persisted to storage. Defaults to `true`.
+</ResponseField>
+
+<Tip>
+Use `Order` to control the display sequence within a category. Settings with lower `Order` values sort first. Settings that share the same `Order` value fall back to registration order.
+</Tip>
+
+## Usage
+
+```csharp
+// Created via attribute (recommended)
+[Metadata(
+    displayName: "Master Volume",
+    displayDescription: "Controls overall game volume",
+    category: SettingCategory.Audio,
+    uiPreference: UIPreference.SliderStepper,
+    order: 0
+)]
+public sealed class MasterVolumeSetting : IntSetting { ... }
+
+// Created directly
+var meta = new Metadata(
+    displayName: "Master Volume",
+    category: SettingCategory.Audio,
+    uiPreference: UIPreference.SliderStepper
+);
+```

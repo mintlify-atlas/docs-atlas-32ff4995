@@ -1,0 +1,92 @@
+---
+title: 'CommandSetting'
+description: 'A setting type that represents an executable action button, such as reset or apply.'
+keywords: ['command', 'action', 'button', 'execute', 'setting', 'CommandSetting']
+---
+
+`CommandSetting` represents an action rather than a stored value. It is used to add executable buttons — such as "Reset to defaults" or "Apply changes" — into a settings panel.
+
+## Class definition
+
+```csharp CommandSetting.cs
+// VoidValue is a placeholder type used because BaseSetting requires a type parameter.
+public sealed class VoidValue { }
+
+public abstract class VoidSetting : BaseSetting<VoidValue>
+{
+    public override VoidValue DefaultValue => null;
+}
+
+public abstract class CommandSetting : VoidSetting
+{
+    public abstract string DisplayText { get; }
+    public abstract bool CanExecute { get; }
+    public abstract void Execute();
+}
+```
+
+## Inheritance chain
+
+```
+YourSetting → CommandSetting → VoidSetting → BaseSetting<VoidValue> → ISetting<VoidValue> → ISetting
+```
+
+## Members to implement
+
+| Member | Type | Description |
+|---|---|---|
+| `Key` | `string` | Unique identifier for this setting. |
+| `DisplayText` | `string` | Label displayed on the action button in the UI. |
+| `CanExecute` | `bool` | Controls whether the button is enabled. |
+| `Execute()` | `void` | The action to run when the button is activated. |
+
+## Example implementation
+
+The following is a "Reset all settings" command:
+
+```csharp ResetSettings.cs
+[Metadata("Reset to Defaults", "Restore all settings to their default values",
+    SettingCategory.General, "Manage", UIPreference.Button)]
+public sealed class ResetAllSettingsSetting : CommandSetting
+{
+    private readonly ISettingsRepository _repository;
+
+    public ResetAllSettingsSetting(ISettingsRepository repository)
+    {
+        _repository = repository;
+    }
+
+    public override string Key => "general.reset_all";
+    public override string DisplayText => "Reset to Defaults";
+    public override bool CanExecute => true;
+
+    public override void Execute()
+    {
+        _repository.ResetAll();
+    }
+}
+```
+
+## Triggering the command
+
+```csharp
+// Check whether the button should be enabled
+if (resetSetting.CanExecute)
+{
+    resetSetting.Execute();
+}
+```
+
+## Notes
+
+<Note>
+  The `Value` property on a `CommandSetting` is always `null` and carries no meaning. Do not read or write `Value` — use `Execute()` to trigger the action.
+</Note>
+
+<Tip>
+  Use `CanExecute` to disable the button when the action is not currently valid — for example, disabling "Apply" when there are no pending changes.
+</Tip>
+
+<Warning>
+  Avoid performing expensive or irreversible operations directly in `Execute()` without user confirmation. Consider showing a confirmation dialog before running destructive actions such as resetting all settings.
+</Warning>

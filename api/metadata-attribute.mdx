@@ -1,0 +1,128 @@
+---
+title: "MetadataAttribute"
+description: "Attribute for declaring setting metadata inline on a setting class"
+---
+
+`MetadataAttribute` lets you attach display and behavior metadata directly to a setting class declaration. The attribute is read by `SettingMeta.GetMetadata` and cached for the lifetime of the application.
+
+**Namespace:** `Eql.Domain.Common.Settings`
+
+## Attribute usage constraints
+
+```csharp
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
+```
+
+| Constraint | Value | Meaning |
+|---|---|---|
+| `AttributeTargets` | `Class` | Apply only to class declarations. |
+| `AllowMultiple` | `false` | At most one `[MetadataAttribute]` per class. |
+| `Inherited` | `true` | Subclasses inherit the attribute if they do not declare their own. |
+
+<Note>
+Because `Inherited = true`, a base class attribute is visible on derived classes unless the derived class declares its own `[MetadataAttribute]`. This is useful when extending a base setting with shared display properties.
+</Note>
+
+## Constructors
+
+### Parameter-based constructor
+
+<ParamField path="displayName" type="string" required>
+  Human-readable label shown in UI panels.
+</ParamField>
+
+<ParamField path="displayDescription" type="string" default='""'>
+  Optional tooltip or subtitle text.
+</ParamField>
+
+<ParamField path="category" type="SettingCategory" default="SettingCategory.General">
+  Top-level group for this setting.
+</ParamField>
+
+<ParamField path="subCategory" type="string" default='""'>
+  Optional secondary grouping within a category.
+</ParamField>
+
+<ParamField path="uiPreference" type="UIPreference" default="UIPreference.Auto">
+  Preferred widget type. Set explicitly when `Auto` selection is not suitable.
+</ParamField>
+
+<ParamField path="order" type="int" default="0">
+  Sort position within the category. Lower values appear first.
+</ParamField>
+
+<ParamField path="isVisible" type="bool" default="true">
+  Whether this setting appears in UI panels.
+</ParamField>
+
+<ParamField path="isSavable" type="bool" default="true">
+  Whether this setting is persisted to storage.
+</ParamField>
+
+### Metadata-based constructor
+
+Accepts a pre-built `Metadata` instance directly.
+
+<ParamField path="metadata" type="Metadata" required>
+  A fully constructed `Metadata` object.
+</ParamField>
+
+## Examples
+
+### Minimal usage
+
+```csharp
+[Metadata(displayName: "Show FPS")]
+public sealed class ShowFpsSetting : BoolSetting
+{
+    public override string Key => "debug.show_fps";
+    public override bool DefaultValue => false;
+}
+```
+
+### Full usage
+
+```csharp
+[Metadata(
+    displayName: "Resolution",
+    displayDescription: "Screen resolution",
+    category: SettingCategory.Graphics,
+    subCategory: "Display",
+    uiPreference: UIPreference.Dropdown,
+    order: 1,
+    isVisible: true,
+    isSavable: true
+)]
+public sealed class ResolutionSetting : EnumSetting<Resolution>
+{
+    public override string Key => "graphics.resolution";
+    public override Resolution DefaultValue => Resolution.HD;
+}
+```
+
+### Inheritance
+
+```csharp
+// Attribute is declared on the base class.
+[Metadata(displayName: "Volume", category: SettingCategory.Audio)]
+public abstract class VolumeBaseSetting : IntSetting { }
+
+// Inherits [Metadata] — no need to re-declare.
+public sealed class MusicVolumeSetting : VolumeBaseSetting
+{
+    public override string Key => "audio.music_volume";
+    public override int DefaultValue => 50;
+    public override int MinValue => 0;
+    public override int MaxValue => 100;
+}
+
+// Overrides with its own [Metadata].
+[Metadata(displayName: "SFX Volume", category: SettingCategory.Audio, order: 1)]
+public sealed class SfxVolumeSetting : VolumeBaseSetting
+{
+    public override string Key => "audio.sfx_volume";
+    public override int DefaultValue => 80;
+    public override int MinValue => 0;
+    public override int MaxValue => 100;
+}
+```

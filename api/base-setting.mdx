@@ -1,0 +1,128 @@
+---
+title: 'BaseSetting'
+description: 'Abstract base class for all settings. Provides thread-safe value storage, change notification, and rollback on error.'
+keywords: ['BaseSetting', 'base class', 'abstract', 'setting', 'API reference']
+---
+
+`BaseSetting<T>` is the recommended starting point for any custom setting. It implements [`ISetting<T>`](/api/isetting) and handles value storage, thread-safety, lazy initialization, and `Changed` event dispatch.
+
+## Namespace
+
+```csharp
+namespace Eql.Domain.Common.Settings
+```
+
+## Inheritance
+
+```
+YourSetting → BaseSetting<T> → ISetting<T> → ISetting
+```
+
+## Class definition
+
+```csharp BaseSetting.cs
+public abstract class BaseSetting<T> : ISetting<T>
+{
+    public abstract string Key { get; }
+    public abstract T DefaultValue { get; }
+
+    public Type ValueType => typeof(T);
+    public UnityEvent<T> Changed { get; } = new UnityEvent<T>();
+    public Metadata Metadata { get; }  // lazy-initialized via SettingMeta.GetMetadata(this)
+
+    public virtual T Value { get; set; }
+    public virtual void Reset() => Value = DefaultValue;
+}
+```
+
+## Abstract members
+
+You must implement the following in every concrete subclass:
+
+<ParamField path="Key" type="string" required>
+  Unique string identifier for this setting. Must be stable across application versions because it is used to persist and retrieve the value.
+</ParamField>
+
+<ParamField path="DefaultValue" type="T" required>
+  The value used when no persisted value exists, and the value restored by `Reset()`. Must not throw.
+</ParamField>
+
+## Concrete members
+
+<ResponseField name="ValueType" type="Type">
+  Returns `typeof(T)`. Provides the setting's value type without requiring the caller to know `T`.
+</ResponseField>
+
+<ResponseField name="Changed" type="UnityEvent<T>">
+  Unity event fired after every successful value change. Initialized to an empty event; never `null`.
+</ResponseField>
+
+<ResponseField name="Metadata" type="Metadata">
+  Lazily loaded from the `[MetadataAttribute]` decoration on the concrete class. Contains display name, description, category, and UI preference. See [`Metadata`](/api/metadata).
+</ResponseField>
+
+<ResponseField name="Value" type="T">
+  Gets or sets the current value. Thread-safe: access is protected by a lock. On first read, lazy-initializes to `DefaultValue`.
+
+  **Set behaviour:**
+  1. Acquires the internal lock.
+  2. Skips if the incoming value equals the current value (equality check).
+  3. Stores the new value and releases the lock.
+  4. Invokes `Changed`.
+  5. If `Changed.Invoke` throws, rolls back to the previous value and re-throws.
+</ResponseField>
+
+<ResponseField name="Reset" type="void">
+  Convenience method — equivalent to `Value = DefaultValue`.
+</ResponseField>
+
+## Behavior notes
+
+<Note>
+  **Thread-safety** — `Value` get/set is guarded by a `lock`. You can read and write a setting from any thread, but `Changed` listeners are invoked on whichever thread triggered the set.
+</Note>
+
+<Warning>
+  **Rollback on exception** — if any `Changed` listener throws, `BaseSetting` restores the previous value before re-throwing. This keeps the setting in a consistent state, but the exception still propagates to the caller. Ensure listeners do not throw under normal conditions.
+</Warning>
+
+<Note>
+  **Lazy initialization** — `Value` is not set to `DefaultValue` at construction time. The first `get` initializes it. This means `Changed` is not fired during initialization.
+</Note>
+
+## Implementation example
+
+```csharp
+using Eql.Domain.Common.Settings;
+using UnityEngine;
+
+[Metadata("Master Volume", "Overall game volume",
+    SettingCategory.Audio, "Volume", UIPreference.Slider, 0)]
+public sealed class MasterVolumeSetting : BaseSetting<float>
+{
+    public override string Key => "audio.master_volume";
+    public override float DefaultValue => 1.0f;
+}
+```
+
+Usage:
+
+```csharp
+var setting = new MasterVolumeSetting();
+
+// Read
+float vol = setting.Value;
+
+// Write (fires Changed, rolls back if a listener throws)
+setting.Value = 0.75f;
+
+// Subscribe
+setting.Changed.AddListener(v => AudioMixer.SetVolume(v));
+
+// Reset to DefaultValue
+setting.Reset();
+```
+
+<Tip>
+  For settings that need range clamping (sliders, numeric inputs), extend [`BaseRangeSetting<T>`](/api/base-range-setting) instead.
+</Tip>

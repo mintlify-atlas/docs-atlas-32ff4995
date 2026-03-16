@@ -1,0 +1,71 @@
+---
+title: "Categories"
+description: "Organize settings into top-level categories and optional subcategories for structured UI panels."
+---
+
+Every setting belongs to a `SettingCategory`. The category is declared in the `[Metadata]` attribute and stored in `Metadata.Category`. It is the primary axis for grouping settings in UI panels.
+
+## SettingCategory values
+
+| Value | Intended use |
+|-------|--------------|
+| `General` | Catch-all for settings that don't fit a specific category. Also the default when no `[Metadata]` attribute is present. |
+| `Control` | Input bindings, sensitivity, invert axes, and other control-scheme settings. |
+| `Graphics` | Resolution, quality level, frame-rate cap, shadows, anti-aliasing, and other rendering settings. |
+| `Audio` | Master volume, music volume, SFX volume, voice volume, and audio output settings. |
+| `Language` | Locale, subtitle language, voice-over language, and text-size settings. |
+| `Gameplay` | Difficulty, HUD toggles, accessibility aids, and other play-style preferences. |
+| `Term` | Legal or consent settings such as terms-of-service acceptance and analytics opt-in. |
+
+## Subcategories
+
+A subcategory is a plain `string` declared alongside the category in `[Metadata]`:
+
+```csharp
+[Metadata("Music Volume", category: SettingCategory.Audio, subCategory: "Volume")]
+[Metadata("SFX Volume",   category: SettingCategory.Audio, subCategory: "Volume")]
+[Metadata("Voice Volume", category: SettingCategory.Audio, subCategory: "Voice")]
+```
+
+Subcategories are not an enum — any non-empty string is valid. They allow a second level of grouping within a category. A setting with an empty `SubCategory` appears before subcategorized settings, or in a default group, depending on your panel implementation.
+
+## Querying by category
+
+`SettingsService.GetByCategory()` returns all registered settings that belong to the given category:
+
+```csharp
+IEnumerable<ISetting> audioSettings =
+    _settingsService.GetByCategory(SettingCategory.Audio);
+
+foreach (var setting in audioSettings)
+{
+    Debug.Log(setting.Key);
+}
+```
+
+To further filter by subcategory, query the `Metadata` property on each result:
+
+```csharp
+var volumeSettings = _settingsService
+    .GetByCategory(SettingCategory.Audio)
+    .OfType<BaseSetting<int>>()
+    .Where(s => s.Metadata.SubCategory == "Volume");
+```
+
+## Category and subcategory in the demo panel
+
+`DemoSettingsPanel` drives two `TMP_Dropdown` menus to navigate settings:
+
+<Steps>
+  <Step title="Category dropdown">
+    Populated with each distinct `SettingCategory` that has at least one visible setting. Selecting a category triggers a subcategory refresh.
+  </Step>
+  <Step title="Subcategory dropdown">
+    Populated with each distinct `SubCategory` string found among visible settings in the selected category. An empty subcategory value is listed as a configurable default label (for example, "General").
+  </Step>
+  <Step title="Item list">
+    `ItemFactory` asynchronously loads the appropriate widget prefab for each setting in the active category and subcategory, ordered by `Metadata.Order`.
+  </Step>
+</Steps>
+
+You can replace `DemoSettingsPanel` with your own panel. Use `GetByCategory()` and filter on `Metadata.SubCategory` to replicate the same behavior in a custom layout.

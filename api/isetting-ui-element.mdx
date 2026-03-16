@@ -1,0 +1,53 @@
+---
+title: 'ISettingUIElement'
+description: 'Marker interface that identifies a MonoBehaviour as a settings UI element.'
+keywords: ['ISettingUIElement', 'UI', 'interface', 'marker', 'API reference']
+---
+
+`ISettingUIElement` is a marker interface. Implementing it on a MonoBehaviour signals to the binder registry that the component is a valid target for an [`ISettingBinder`](/api/isetting-binder).
+
+## Namespace
+
+```csharp
+namespace Eql.Common.Services.Settings.UI
+```
+
+## Interface definition
+
+```csharp ISettingUIElement.cs
+public interface ISettingUIElement { }
+```
+
+<Note>
+  `ISettingUIElement` declares no members. Its sole purpose is to make UI element types discoverable by the binder system at runtime without coupling the system to any specific UI framework.
+</Note>
+
+## Usage
+
+Apply `ISettingUIElement` to any MonoBehaviour that wraps a UI control you want to connect to a setting.
+
+```csharp
+using Eql.Common.Services.Settings.UI;
+using UnityEngine;
+using UnityEngine.UI;
+
+// A slider wrapper that the binder system can discover
+public class SliderUIElement : MonoBehaviour, ISettingUIElement
+{
+    public Slider Slider;
+
+    public void SetRange(float min, float max)
+    {
+        Slider.minValue = min;
+        Slider.maxValue = max;
+    }
+
+    public void SetValue(float value) => Slider.value = value;
+}
+```
+
+Once the component implements `ISettingUIElement`, a matching [`ISettingBinder`](/api/isetting-binder) can be registered that handles `ISetting<float>` + `SliderUIElement` pairs.
+
+<Tip>
+  Keep UI element classes thin — they should only expose the surface area that binders need (e.g., `SetValue`, `SetRange`, event callbacks). Business logic belongs in the binder or the setting itself.
+</Tip>

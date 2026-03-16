@@ -1,0 +1,107 @@
+---
+title: 'BaseRangeSetting'
+description: 'Abstract base class for settings with a minimum and maximum value. Automatically clamps values to the declared range.'
+keywords: ['BaseRangeSetting', 'range', 'clamp', 'base class', 'abstract', 'API reference']
+---
+
+`BaseRangeSetting<T>` extends [`BaseSetting<T>`](/api/base-setting) with automatic value clamping. When `Value` is set to something outside `[MinValue, MaxValue]`, the value is silently clamped before being stored.
+
+## Namespace
+
+```csharp
+namespace Eql.Domain.Common.Settings
+```
+
+## Inheritance
+
+```
+YourSetting → BaseRangeSetting<T> → BaseSetting<T> → ISetting<T> → ISetting
+                                  ↘ IRangeSetting<T>
+```
+
+## Class definition
+
+```csharp BaseRangeSetting.cs
+public abstract class BaseRangeSetting<T> : BaseSetting<T>, IRangeSetting<T>
+    where T : IComparable<T>
+{
+    public abstract T MinValue { get; }
+    public abstract T MaxValue { get; }
+
+    public override T Value
+    {
+        get => base.Value;
+        set
+        {
+            // if value < MinValue → value = MinValue
+            // if value > MaxValue → value = MaxValue
+            base.Value = value;
+        }
+    }
+}
+```
+
+## Type constraint
+
+`T` must implement `IComparable<T>`. The built-in numeric types (`int`, `float`, `double`) all satisfy this constraint.
+
+## Abstract members
+
+In addition to [`BaseSetting<T>`'s abstract members](/api/base-setting#abstract-members), you must also implement:
+
+<ParamField path="MinValue" type="T" required>
+  The inclusive lower bound. Any value set below `MinValue` is clamped up to `MinValue`.
+</ParamField>
+
+<ParamField path="MaxValue" type="T" required>
+  The inclusive upper bound. Any value set above `MaxValue` is clamped down to `MaxValue`.
+</ParamField>
+
+## Value clamping behavior
+
+<ResponseField name="Value" type="T">
+  Overrides `BaseSetting<T>.Value`. Before delegating to the base setter:
+
+  1. If `value.CompareTo(MinValue) < 0`, sets `value = MinValue`.
+  2. If `value.CompareTo(MaxValue) > 0`, sets `value = MaxValue`.
+  3. Calls `base.Value = value`.
+
+  All other `BaseSetting<T>` guarantees (thread-safety, equality check, rollback) still apply after clamping.
+</ResponseField>
+
+<Warning>
+  Clamping happens silently — no exception is thrown and `Changed` fires with the clamped value, not the original. If your code needs to detect out-of-range inputs, validate before assigning.
+</Warning>
+
+## Implementation example
+
+```csharp
+using Eql.Domain.Common.Settings;
+
+[Metadata("Field of View", "Camera field of view",
+    SettingCategory.Graphics, "Camera", UIPreference.Slider, 1)]
+public sealed class FovSetting : BaseRangeSetting<float>
+{
+    public override string Key => "graphics.fov";
+    public override float DefaultValue => 90.0f;
+    public override float MinValue => 60.0f;
+    public override float MaxValue => 120.0f;
+}
+```
+
+Usage:
+
+```csharp
+var fov = new FovSetting();
+
+fov.Value = 150.0f;  // clamped to 120.0f
+fov.Value = 10.0f;   // clamped to 60.0f
+fov.Value = 90.0f;   // stored as-is
+
+Debug.Log(fov.MinValue);  // 60
+Debug.Log(fov.MaxValue);  // 120
+```
+
+<Tip>
+  Pair a `BaseRangeSetting<float>` or `BaseRangeSetting<int>` with a slider UI element and a binder that reads `MinValue`/`MaxValue` to configure the slider bounds automatically.
+</Tip>

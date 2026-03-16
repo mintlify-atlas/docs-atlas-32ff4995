@@ -1,0 +1,66 @@
+---
+title: 'StringSetting'
+description: 'A setting type for free-form text values such as player names or custom strings.'
+keywords: ['string', 'text', 'input', 'setting', 'StringSetting']
+---
+
+`StringSetting` is the base class for settings that hold a `string` value. Use it for any free-form text preference, such as a player name or a custom server address.
+
+## Class definition
+
+```csharp StringSetting.cs
+public abstract class StringSetting : BaseSetting<string>
+{
+    public override string DefaultValue => string.Empty;
+}
+```
+
+## Inheritance chain
+
+```
+YourSetting → StringSetting → BaseSetting<string> → ISetting<string> → ISetting
+```
+
+## Example implementation
+
+The following is a player name setting:
+
+```csharp ProfileSettings.cs
+[Metadata("Player Name", "Your in-game display name",
+    SettingCategory.Profile, "Identity", UIPreference.InputField)]
+public sealed class PlayerNameSetting : StringSetting
+{
+    public override string Key => "profile.player_name";
+    // DefaultValue is inherited as string.Empty
+}
+```
+
+## Reading, writing, and subscribing
+
+```csharp
+// Read the current value
+string name = playerNameSetting.Value;
+
+// Write a new value
+playerNameSetting.Value = "Adventurer";
+
+// Subscribe to changes
+playerNameSetting.OnValueChanged += (oldValue, newValue) =>
+{
+    HUD.SetPlayerName(newValue);
+};
+```
+
+## Notes
+
+<Note>
+  The default value for any `StringSetting` is `string.Empty` (`""`). You can override `DefaultValue` in your concrete class to use a different initial value.
+</Note>
+
+<Note>
+  `StringSetting` does not perform any length or content validation. Add any required validation logic inside the `Value` setter of your concrete class.
+</Note>
+
+<Tip>
+  The typical `UIPreference` for a `StringSetting` is `InputField`, which renders the setting as a text input in the settings UI.
+</Tip>

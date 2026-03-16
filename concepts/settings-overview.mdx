@@ -1,0 +1,138 @@
+---
+title: "Settings overview"
+description: "The interface hierarchy, base class behavior, and how to create a concrete setting."
+---
+
+Every setting in the system is an object that implements `ISetting`. The system uses a small interface hierarchy to express progressively richer behavior — from a plain key-value pair to a ranged, typed value with change events.
+
+## Interface hierarchy
+
+```
+ISetting
+  └─ ISetting<T>
+        └─ IRangeSetting<T>
+```
+
+### ISetting
+
+The root interface. It carries only two members:
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `Key` | `string` | Unique string identifier used to look up the setting in `SettingsService`. |
+| `ValueType` | `Type` | The runtime `Type` of the setting value. |
+
+### ISetting\<T\>
+
+Adds typed value access and change notification:
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `Value` | `T` | Current value. Getting or setting is thread-safe. |
+| `DefaultValue` | `T` | The value returned before any assignment and after `Reset()`. |
+| `Changed` | `UnityEvent<T>` | Fired after every successful value change. |
+
+### IRangeSetting\<T\>
+
+Extends `ISetting<T>` for settings that have a valid range. `T` is constrained to `IComparable<T>`.
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `MinValue` | `T` | Inclusive lower bound. |
+| `MaxValue` | `T` | Inclusive upper bound. |
+
+## BaseSetting\<T\>
+
+`BaseSetting<T>` is the abstract base class you extend when creating a new setting. It provides a complete, ready-to-use implementation of `ISetting<T>`.
+
+```csharp
+public abstract class BaseSetting<T> : ISetting<T>
+{
+    public abstract string Key { get; }
+    public abstract T DefaultValue { get; }
+    public Type ValueType => typeof(T);
+    public UnityEvent<T> Changed { get; } = new UnityEvent<T>();
+    public Metadata Metadata { get; } // populated from [Metadata] attribute
+
+    public virtual T Value
+    {
+        get { /* thread-safe; lazy-initializes to DefaultValue */ }
+        set { /* equality check → assign → Changed.Invoke → rollback on error */ }
+    }
+
+    public virtual void Reset() => Value = DefaultValue;
+}
+```
+
+### Thread-safe value access
+
+The `Value` getter uses a lock to ensure reads and writes are safe when accessed from multiple threads. On first access the getter returns `DefaultValue` and stores it, so no separate initialization step is needed.
+
+### Change events and rollback
+
+When you set `Value`, the base class:
+
+1. Skips the assignment if the new value equals the current value.
+2. Assigns the new value.
+3. Invokes `Changed` with the new value.
+4. If an exception is thrown during `Changed.Invoke`, rolls the stored value back to its previous state.
+
+<Note>
+Rollback only restores the in-memory value. If your `Changed` listener has already persisted the new value to disk or applied it to the game before throwing, you are responsible for undoing those side effects yourself.
+</Note>
+
+## The Key property
+
+Each setting requires a globally unique `Key`. The key is a plain string — by convention it uses a `category.setting_name` dot-notation style, but no format is enforced.
+
+```csharp
+public override string Key => "audio.music_volume";
+```
+
+Keys are used by `SettingsService.Get(string key)` for dictionary look-up. Two settings with the same key cannot coexist — see [auto-registration](/concepts/auto-registration) for how duplicates are handled.
+
+## Creating a concrete setting
+
+Extend one of the built-in base classes and implement the two abstract members:
+
+```csharp
+using SimpleSettings;
+
+public sealed class ShowSubtitlesSetting : BoolSetting
+{
+    public override string Key => "accessibility.show_subtitles";
+    public override bool DefaultValue => true;
+}
+```
+
+That is all that is required. `SettingsService` will discover and register the class automatically at startup — no additional wiring needed.
+
+For a setting with a valid range, extend a range base class instead:
+
+```csharp
+[Metadata("Music Volume", "Background music level",
+    SettingCategory.Audio, "Volume", UIPreference.SliderStepper)]
+public sealed class MusicVolumeSetting : IntSetting
+{
+    public override string Key => "audio.music_volume";
+    public override int DefaultValue => 50;
+    public override int MinValue => 0;
+    public override int MaxValue => 100;
+}
+```
+
+## Class hierarchy at a glance
+
+```
+ISetting
+  └─ ISetting<T>
+        ├─ BaseSetting<T>           (abstract)
+        │     ├─ BoolSetting        (concrete base)
+        │     ├─ StringSetting      (concrete base)
+        │     └─ CommandSetting     (concrete base)
+        └─ IRangeSetting<T>
+              └─ BaseRangeSetting<T> (abstract)
+                    ├─ IntSetting   (concrete base)
+                    ├─ FloatSetting (concrete base)
+                    └─ EnumSetting<TEnum> (concrete base)
+```

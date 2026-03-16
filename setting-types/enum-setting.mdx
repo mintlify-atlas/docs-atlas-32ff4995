@@ -1,0 +1,72 @@
+---
+title: 'EnumSetting'
+description: 'A generic setting type for values from a C# enum, such as quality presets or game modes.'
+keywords: ['enum', 'dropdown', 'preset', 'setting', 'EnumSetting']
+---
+
+`EnumSetting<TEnum>` is the base class for settings whose value is one member of a C# enum. Use it for any preference that maps to a fixed set of named options.
+
+## Class definition
+
+```csharp EnumSetting.cs
+public abstract class EnumSetting<TEnum> : BaseSetting<TEnum> where TEnum : Enum { }
+```
+
+## Inheritance chain
+
+```
+YourSetting → EnumSetting<TEnum> → BaseSetting<TEnum> → ISetting<TEnum> → ISetting
+```
+
+## Example implementation
+
+First, define the enum that represents the available options:
+
+```csharp GraphicsSettings.cs
+public enum GraphicsQuality : byte
+{
+    Low,
+    Medium,
+    High,
+    Ultra,
+    Custom
+}
+```
+
+Then define the setting class, passing the enum as the type parameter:
+
+```csharp GraphicsSettings.cs
+[Metadata("Graphics Quality", "Select the overall graphics quality preset",
+    SettingCategory.Graphics, "Quality", UIPreference.Dropdown, 1)]
+public sealed class GraphicsQualitySetting : EnumSetting<GraphicsQuality>
+{
+    public override string Key => "graphics.quality";
+    public override GraphicsQuality DefaultValue => GraphicsQuality.High;
+}
+```
+
+## Reading, writing, and subscribing
+
+```csharp
+// Read the current value
+GraphicsQuality quality = graphicsQualitySetting.Value;
+
+// Write a new value
+graphicsQualitySetting.Value = GraphicsQuality.Ultra;
+
+// Subscribe to changes
+graphicsQualitySetting.OnValueChanged += (oldValue, newValue) =>
+{
+    GraphicsManager.ApplyQualityPreset(newValue);
+};
+```
+
+## Notes
+
+<Note>
+  `EnumSetting<TEnum>` does not perform range clamping. The value must be a valid member of `TEnum`; passing an out-of-range cast (e.g., `(GraphicsQuality)99`) will store whatever value is provided without validation.
+</Note>
+
+<Tip>
+  The typical `UIPreference` for an `EnumSetting` is `Dropdown` (for longer lists) or `ToggleGroup` (for short lists of 2–4 options).
+</Tip>

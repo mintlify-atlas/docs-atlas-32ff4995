@@ -1,0 +1,91 @@
+---
+title: 'ISetting'
+description: 'Base interfaces for all settings in the Simple Settings System.'
+keywords: ['ISetting', 'interface', 'setting', 'generic', 'API reference']
+---
+
+`ISetting` is the root interface for every setting in the system. The generic variant `ISetting<T>` extends it with typed value access and change notification.
+
+## Namespace
+
+```csharp
+namespace Eql.Common.Services.Settings
+```
+
+## Interface definitions
+
+```csharp ISetting.cs
+public interface ISetting
+{
+    string Key { get; }
+    Type ValueType { get; }
+}
+
+public interface ISetting<T> : ISetting
+{
+    T Value { get; set; }
+    T DefaultValue { get; }
+    UnityEvent<T> Changed { get; }
+}
+```
+
+## ISetting members
+
+<ResponseField name="Key" type="string" required>
+  Unique string identifier for this setting. Used to look up and persist the setting across sessions.
+</ResponseField>
+
+<ResponseField name="ValueType" type="Type" required>
+  The `System.Type` of the setting value. Equivalent to `typeof(T)` on a typed setting.
+</ResponseField>
+
+## ISetting\<T\> members
+
+<ResponseField name="Value" type="T" required>
+  Gets or sets the current value of the setting. Setting a new value fires the `Changed` event.
+</ResponseField>
+
+<ResponseField name="DefaultValue" type="T" required>
+  The value the setting reverts to when `Reset()` is called, or when no persisted value exists.
+</ResponseField>
+
+<ResponseField name="Changed" type="UnityEvent<T>" required>
+  Unity event invoked whenever `Value` changes. Subscribe to react to setting changes at runtime.
+</ResponseField>
+
+## Implementation example
+
+The following example shows a minimal typed setting that implements `ISetting<T>` directly. In practice, you should extend [`BaseSetting<T>`](/api/base-setting) instead.
+
+```csharp
+using Eql.Common.Services.Settings;
+using UnityEngine.Events;
+
+public class VolumeSettingManual : ISetting<float>
+{
+    public string Key => "audio.volume";
+    public Type ValueType => typeof(float);
+    public float DefaultValue => 1.0f;
+    public UnityEvent<float> Changed { get; } = new UnityEvent<float>();
+
+    private float _value = 1.0f;
+    public float Value
+    {
+        get => _value;
+        set
+        {
+            if (Mathf.Approximately(_value, value)) return;
+            _value = value;
+            Changed.Invoke(value);
+        }
+    }
+}
+```
+
+<Tip>
+  Prefer extending [`BaseSetting<T>`](/api/base-setting) over implementing `ISetting<T>` directly. `BaseSetting<T>` provides thread-safety, rollback on exceptions, and lazy default initialization out of the box.
+</Tip>
+
+<Note>
+  Use `ISetting` (non-generic) when you need to work with settings of unknown type — for example, in the binder system or a settings registry.
+</Note>

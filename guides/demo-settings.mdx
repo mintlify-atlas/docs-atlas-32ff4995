@@ -1,0 +1,60 @@
+---
+title: 'Demo settings'
+description: 'Reference for the example settings included with Simple Settings System.'
+---
+
+The package ships with a set of ready-made settings across several categories. These are intended as working examples and starting points — not production requirements.
+
+<Info>
+  Demo settings are fully functional but exist for illustration purposes. Remove any you do not need before shipping your project.
+</Info>
+
+## Included settings
+
+### Audio
+
+| Class | Key | Type | Category | Subcategory | Default |
+|---|---|---|---|---|---|
+| `MusicVolumeSetting` | `audio.music_volume` | `int` (0–100) | Audio | Volume | `50` |
+| `SFXVolumeSetting` | `audio.sfx_volume` | `int` (0–100) | Audio | Volume | `100` |
+| `MasterVolumeSetting` | `audio.master_volume` | `int` (0–100) | Audio | Volume | `100` |
+
+### Graphics
+
+| Class | Key | Type | Category | Subcategory | Default |
+|---|---|---|---|---|---|
+| `GraphicsQualitySetting` | `graphics.quality` | `GraphicsQuality` enum | Graphics | Quality | `High` |
+| `FullscreenSetting` | `graphics.fullscreen` | `bool` | Graphics | Display | `true` |
+| `VSyncSetting` | `graphics.vsync` | `bool` | Graphics | Display | `true` |
+| `ResolutionSetting` | `graphics.resolution_index` | `int` (0–20) | Graphics | Display | `0` |
+
+### Other demo files
+
+The following files are also included but their individual settings are not listed here — inspect each file for the full list of keys and defaults.
+
+| File | Description |
+|---|---|
+| `ControlSettings.cs` | Input and control scheme settings |
+| `GeneralSettings.cs` | Miscellaneous gameplay settings |
+| `LanguageSettings.cs` | Localization and language selection |
+| `TermSettings.cs` | Terms of service / consent flags |
+
+## Using demo settings as templates
+
+The demo classes follow the exact same structure you would use for your own settings. Copy a class, rename it, and update the key, default value, and metadata.
+
+For example, to create a custom volume setting based on `MusicVolumeSetting`:
+
+```csharp
+[Metadata("Ambient Volume", "Adjust ambient sound volume",
+    SettingCategory.Audio, "Volume", UIPreference.SliderStepper)]
+public sealed class AmbientVolumeSetting : IntSetting
+{
+    public override string Key => "audio.ambient_volume";
+    public override int DefaultValue => 40;
+    public override int MinValue => 0;
+    public override int MaxValue => 100;
+}
+```
+
+See [Creating settings](/guides/creating-settings) for the full step-by-step walkthrough.

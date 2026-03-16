@@ -1,0 +1,84 @@
+---
+title: "UI items"
+description: "Prefab-based widgets that visually represent individual settings in the UI."
+---
+
+Each setting is rendered as a **UI item** — a prefab-backed MonoBehaviour that inherits from `BaseItem`. The six built-in item types cover the most common value presentations. `ItemFactory` handles async loading, instantiation, and teardown.
+
+## BaseItem
+
+`BaseItem` is the abstract MonoBehaviour base class for all item prefabs. After `ItemFactory` instantiates a prefab it calls:
+
+```csharp
+item.Initialize(setting, metadata);
+```
+
+`Initialize` receives the `ISetting` that drives this item and the `Metadata` that describes it (display name, description, sort order, etc.). Concrete subclasses use these values to populate their labels and configure their controls before a binder takes over the data connection.
+
+## Item types
+
+| Type | `UIPreference` value | Best used for |
+|------|---------------------|---------------|
+| `SliderItem` | `SliderStepper` | Numeric ranges (`IntSetting`, `FloatSetting`) |
+| `DropdownItem` | `Dropdown` | Enum or indexed values (`EnumSetting<T>`) |
+| `ToggleGroupItem` | `ToggleGroup` | Boolean or small enum groups |
+| `CheckboxGroupItem` | `CheckboxGroup` | Multi-select boolean groups |
+| `InputFieldItem` | `InputField` | Free-text string values (`StringSetting`) |
+| `ButtonItem` | `Button` | Commands and actions (`CommandSetting`) |
+
+## ItemFactory
+
+`ItemFactory` is a non-MonoBehaviour service class injected through `IResourceService`. It owns the full lifecycle of every item it creates.
+
+### Resources path mapping
+
+Internally, `ItemFactory` maps each `UIPreference` to a path under the `Resources` folder:
+
+| `UIPreference` | Resources path |
+|---------------|----------------|
+| `SliderStepper` | `settings/items/slider stepper item.prefab` |
+| `Dropdown` | `settings/items/dropdonw item.prefab` |
+| `InputField` | `settings/items/input field item.prefab` |
+| `ToggleGroup` | `settings/items/toggle group item.prefab` |
+| `CheckboxGroup` | `settings/items/checkbox group item.prefab` |
+| `Button` | `settings/items/button item.prefab` |
+
+### CreateAsync
+
+```csharp
+public async UniTask<BaseItem> CreateAsync(
+    ISetting setting,
+    Metadata metadata,
+    RectTransform parent,
+    CancellationToken token = default)
+```
+
+`CreateAsync` performs three steps:
+
+1. Looks up the `UIPreference` from `metadata` in the path dictionary.
+2. Loads the prefab from Resources asynchronously via `IResourceService`.
+3. Instantiates the prefab under `parent` and calls `item.Initialize(setting, metadata)`.
+
+Pass `destroyCancellationToken` (available on any MonoBehaviour in Unity 2022+) as `token` to automatically cancel loading if the panel is destroyed mid-flight.
+
+```csharp
+var item = await m_ItemFactory.CreateAsync(
+    setting,
+    metadata,
+    m_Content,
+    destroyCancellationToken);
+```
+
+### Release
+
+When a panel is torn down, call `Release` for every item it holds:
+
+```csharp
+public void Release(BaseItem item) => Object.Destroy(item.gameObject);
+```
+
+This destroys the item's `GameObject`. If your project pools GameObjects, replace `Release` with your own return-to-pool logic in a subclass or wrapper.
+
+<Note>
+  `UIPreference.Auto` has no entry in the path dictionary. If a setting's metadata specifies `Auto`, `ItemFactory` will log a warning and return without creating an item. Assign an explicit `UIPreference` to every setting you intend to display in a panel.
+</Note>

@@ -1,0 +1,158 @@
+---
+title: "UI binders"
+description: "How binders connect ISetting instances to ISettingUIElement widgets, and how to write your own."
+---
+
+A **binder** is responsible for the two-way connection between a setting's value and a UI element. When a setting's value changes, the binder updates the widget. When the user interacts with the widget, the binder writes back to the setting.
+
+## ISettingBinder
+
+```csharp
+public interface ISettingBinder
+{
+    int Priority { get; }
+    bool CanBind(ISetting setting, ISettingUIElement uiElement);
+    void Bind(ISetting setting, ISettingUIElement uiElement);
+    void Unbind();
+}
+```
+
+| Member | Description |
+|--------|-------------|
+| `Priority` | Integer used by `BinderRegistry` to rank candidates. Higher values are preferred. |
+| `CanBind` | Returns `true` when this binder supports the given setting and UI element combination. |
+| `Bind` | Establishes the connection: sets up the UI, syncs the current value, and subscribes to changes. |
+| `Unbind` | Tears down all subscriptions and releases references. |
+
+## BaseSettingBinder
+
+`BaseSettingBinder<TUIElement, TValue>` provides the boilerplate for the most common case: a typed UI element and a typed setting value.
+
+```csharp
+public abstract class BaseSettingBinder<TUIElement, TValue> : ISettingBinder
+    where TUIElement : class, ISettingUIElement
+{
+    public virtual int Priority => 100;
+
+    public virtual bool CanBind(ISetting setting, ISettingUIElement uiElement)
+        => setting is ISetting<TValue> && uiElement is TUIElement;
+
+    public void Bind(ISetting setting, ISettingUIElement baseUIElement) { ... }
+    public virtual void Unbind() { ... }
+
+    protected abstract void SetupUI();
+    protected abstract void UpdateUI(TValue value);
+    protected abstract void SubscribeToUI();
+    protected abstract void UnsubscribeFromUI();
+}
+```
+
+`Bind` casts `setting` to `ISetting<TValue>` and `baseUIElement` to `TUIElement`, stores them as protected fields (`setting` and `uiElement`), then calls the four abstract methods in order.
+
+### The four abstract methods
+
+| Method | When called | Responsibility |
+|--------|-------------|----------------|
+| `SetupUI()` | Once, during `Bind` | Configure static aspects of the widget (labels, min/max, options list) |
+| `UpdateUI(TValue value)` | During `Bind`, then on every `setting.Changed` event | Push the current value into the widget |
+| `SubscribeToUI()` | Once, during `Bind` | Attach listeners to the widget so user input triggers a setting write |
+| `UnsubscribeFromUI()` | During `Unbind` | Remove all widget listeners |
+
+## Binding lifecycle
+
+<Steps>
+  <Step title="Bind is called">
+    `BinderRegistry.FindBinder()` returns this binder. The panel calls `binder.Bind(setting, uiElement)`.
+  </Step>
+  <Step title="SetupUI">
+    The binder configures static widget properties — for example, setting the min/max labels on a slider or populating the options list on a dropdown.
+  </Step>
+  <Step title="UpdateUI">
+    `UpdateUI(setting.Value)` is called immediately to reflect the setting's current value in the widget.
+  </Step>
+  <Step title="SubscribeToUI">
+    The binder registers a callback on the widget's change event (e.g., `onValueChanged`). When the user interacts, this callback writes back to `setting.Value`.
+  </Step>
+  <Step title="setting.Changed subscription">
+    `BaseSettingBinder` subscribes to `setting.Changed`. If the value changes from code (not from this binder), `UpdateUI` is called again to keep the widget in sync.
+  </Step>
+  <Step title="Unbind is called">
+    When the panel is destroyed or the category changes, `binder.Unbind()` is called. It unsubscribes from `setting.Changed` and calls `UnsubscribeFromUI()`.
+  </Step>
+</Steps>
+
+## Priority system
+
+`BinderRegistry` sorts all registered binders by `Priority` in descending order. `FindBinder` returns the first binder whose `CanBind` returns `true`.
+
+- Built-in binders default to `Priority = 100`.
+- Register a binder with `Priority > 100` to override a built-in binder for a specific type combination.
+- Register a binder with `Priority < 100` as a low-priority fallback.
+
+## BinderRegistry
+
+```csharp
+// Register a binder (call once, e.g. in a Zenject installer)
+BinderRegistry.Register(new MyCustomBinder());
+
+// Find the best binder for a setting + UI element pair
+ISettingBinder binder = BinderRegistry.FindBinder(setting, uiElement);
+if (binder != null)
+    binder.Bind(setting, uiElement);
+
+// Inspect all registered binders
+IReadOnlyList<ISettingBinder> all = BinderRegistry.GetAll();
+
+// Remove all binders (useful in unit tests)
+BinderRegistry.Clear();
+```
+
+## Writing a custom binder
+
+The example below binds a `FloatSetting` to a hypothetical `CustomSliderItem` that exposes a `UnityEvent<float>` called `onSliderChanged`.
+
+```csharp
+public class CustomSliderBinder : BaseSettingBinder<CustomSliderItem, float>
+{
+    // Override to take precedence over the built-in SliderStepper binder
+    public override int Priority => 150;
+
+    protected override void SetupUI()
+    {
+        uiElement.SetLabel(setting.GetMetadata().DisplayName);
+        uiElement.SetRange(
+            ((IRangeSetting<float>)setting).MinValue,
+            ((IRangeSetting<float>)setting).MaxValue);
+    }
+
+    protected override void UpdateUI(float value)
+    {
+        uiElement.SetValue(value);
+    }
+
+    protected override void SubscribeToUI()
+    {
+        uiElement.onSliderChanged.AddListener(OnSliderChanged);
+    }
+
+    protected override void UnsubscribeFromUI()
+    {
+        uiElement.onSliderChanged.RemoveListener(OnSliderChanged);
+    }
+
+    private void OnSliderChanged(float newValue)
+    {
+        setting.Value = newValue;
+    }
+}
+```
+
+Register it during setup:
+
+```csharp
+BinderRegistry.Register(new CustomSliderBinder());
+```
+
+<Tip>
+  Set `Priority` above `100` to override a built-in binder for the same type combination. This lets you swap out the default slider behaviour without removing or modifying the original binder.
+</Tip>

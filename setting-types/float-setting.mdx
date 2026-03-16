@@ -1,0 +1,81 @@
+---
+title: 'FloatSetting'
+description: 'A setting type for floating-point values with optional min/max range clamping.'
+keywords: ['float', 'range', 'clamp', 'setting', 'FloatSetting']
+---
+
+`FloatSetting` is the base class for settings that hold a `float` value. It extends `BaseRangeSetting<float>`, which automatically clamps the value to a configured min/max range whenever it is set.
+
+## Class definition
+
+```csharp FloatSetting.cs
+public abstract class FloatSetting : BaseRangeSetting<float>
+{
+    public override float MinValue => float.MinValue;
+    public override float MaxValue => float.MaxValue;
+}
+```
+
+The base clamping logic in `BaseRangeSetting<T>` is:
+
+```csharp BaseRangeSetting.cs
+public override T Value
+{
+    get => base.Value;
+    set
+    {
+        if (value.CompareTo(MinValue) < 0) value = MinValue;
+        if (value.CompareTo(MaxValue) > 0) value = MaxValue;
+        base.Value = value;
+    }
+}
+```
+
+## Inheritance chain
+
+```
+YourSetting → FloatSetting → BaseRangeSetting<float> → BaseSetting<float> → ISetting<float> → ISetting
+```
+
+## Example implementation
+
+The following is a screen brightness setting constrained to the range 0.0–1.0:
+
+```csharp DisplaySettings.cs
+[Metadata("Brightness", "Adjust the screen brightness",
+    SettingCategory.Display, "Display", UIPreference.SliderStepper)]
+public sealed class BrightnessSetting : FloatSetting
+{
+    public override string Key => "display.brightness";
+    public override float DefaultValue => 1.0f;
+    public override float MinValue => 0.0f;
+    public override float MaxValue => 1.0f;
+}
+```
+
+## Reading, writing, and subscribing
+
+```csharp
+// Read the current value
+float brightness = brightnessSetting.Value;
+
+// Write a new value — automatically clamped to [0.0, 1.0]
+brightnessSetting.Value = 1.5f; // stored as 1.0f
+brightnessSetting.Value = -0.1f; // stored as 0.0f
+
+// Subscribe to changes
+brightnessSetting.OnValueChanged += (oldValue, newValue) =>
+{
+    Screen.SetBrightness(newValue);
+};
+```
+
+## Notes
+
+<Note>
+  The default `MinValue` is `float.MinValue` and the default `MaxValue` is `float.MaxValue`. Override both properties in your concrete class to constrain the accepted range.
+</Note>
+
+<Tip>
+  The typical `UIPreference` for a `FloatSetting` is `SliderStepper`, which renders the setting as a slider in the settings UI.
+</Tip>

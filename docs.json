@@ -1,122 +1,117 @@
 {
   "$schema": "https://mintlify.com/docs.json",
+  "name": "Simple Settings System",
   "theme": "mint",
-  "name": "Mint Starter Kit",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#94cb04",
+    "light": "#545454",
+    "dark": "#94cb04"
   },
-  "favicon": "/favicon.svg",
+
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/ATG380/simple-settings-system"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/ATG380/simple-settings-system"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "installation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/settings-overview",
+              "concepts/metadata",
+              "concepts/categories",
+              "concepts/auto-registration"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Setting Types",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "setting-types/bool-setting",
+              "setting-types/int-setting",
+              "setting-types/float-setting",
+              "setting-types/string-setting",
+              "setting-types/enum-setting",
+              "setting-types/command-setting"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "UI System",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "ui/overview",
+              "ui/ui-items",
+              "ui/binders",
+              "ui/settings-panel"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/creating-settings",
+              "guides/custom-binders",
+              "guides/settings-service",
+              "guides/demo-settings"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Interfaces",
             "pages": [
-              "api-reference/introduction"
+              "api/isetting",
+              "api/irange-setting",
+              "api/isetting-binder",
+              "api/isetting-ui-element"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Base Classes",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/base-setting",
+              "api/base-range-setting",
+              "api/base-setting-binder"
+            ]
+          },
+          {
+            "group": "Services",
+            "pages": [
+              "api/settings-service",
+              "api/binder-registry",
+              "api/setting-meta",
+              "api/item-factory"
+            ]
+          },
+          {
+            "group": "Data",
+            "pages": [
+              "api/metadata",
+              "api/metadata-attribute",
+              "api/setting-category",
+              "api/ui-preference"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

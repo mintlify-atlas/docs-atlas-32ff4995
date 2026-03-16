@@ -1,0 +1,166 @@
+---
+title: 'Using SettingsService'
+description: 'Access, observe, and reset settings through the central SettingsService registry.'
+---
+
+`SettingsService` is the single source of truth for all settings in your project. It is registered as a singleton via Zenject and auto-discovers every setting class at initialization.
+
+## Injecting the service
+
+Use Zenject's `[Inject]` attribute to receive `SettingsService` in any class that lives in the Zenject container.
+
+```csharp
+using Zenject;
+using SimpleSettings;
+
+public class AudioManager : IInitializable
+{
+    private readonly SettingsService m_Settings;
+
+    [Inject]
+    public AudioManager(SettingsService settings)
+    {
+        m_Settings = settings;
+    }
+}
+```
+
+<Note>
+  `SettingsService` is installed with `.NonLazy()`, so it initializes at scene load regardless of whether anything accesses it. If you reference it before the Zenject context has resolved, auto-registration will still occur on first access.
+</Note>
+
+## API reference
+
+### Get\<T\>() — retrieve by type
+
+Fetch a specific setting instance using its concrete class as the type parameter.
+
+```csharp
+var musicVolume = m_Settings.Get<MusicVolumeSetting>();
+Debug.Log(musicVolume.Value); // e.g., 50
+```
+
+### Get(string key) — retrieve by key
+
+Fetch a setting by its string key. Returns `ISetting`, so cast if you need the typed value.
+
+```csharp
+ISetting setting = m_Settings.Get("audio.music_volume");
+Debug.Log(setting.ValueType); // System.Int32
+```
+
+### GetAll() — enumerate every setting
+
+Iterate all registered settings regardless of category.
+
+```csharp
+foreach (ISetting setting in m_Settings.GetAll())
+{
+    Debug.Log($"{setting.Key}: {setting.ValueType.Name}");
+}
+```
+
+### GetByCategory(SettingCategory) — filter by category
+
+Retrieve all settings that belong to a specific `SettingCategory`.
+
+```csharp
+var audioSettings = m_Settings.GetByCategory(SettingCategory.Audio);
+foreach (ISetting setting in audioSettings)
+{
+    Debug.Log(setting.Key);
+}
+```
+
+### ResetAll() — restore defaults
+
+Call `Reset()` on every registered setting, reverting each to its `DefaultValue`.
+
+```csharp
+m_Settings.ResetAll();
+```
+
+## Subscribing to changes
+
+Each setting exposes a `UnityEvent<T>` named `Changed`. Subscribe to it to react when a value is modified.
+
+```csharp
+void Start()
+{
+    var volume = m_Settings.Get<MusicVolumeSetting>();
+    volume.Changed.AddListener(OnMusicVolumeChanged);
+}
+
+void OnDestroy()
+{
+    // Always unsubscribe to prevent memory leaks.
+    var volume = m_Settings.Get<MusicVolumeSetting>();
+    volume.Changed.RemoveListener(OnMusicVolumeChanged);
+}
+
+private void OnMusicVolumeChanged(int newValue)
+{
+    AudioManager.SetMusicVolume(newValue / 100f);
+}
+```
+
+## Applying settings on startup
+
+A common pattern is to read all relevant settings once when a manager initializes, then keep them in sync via events.
+
+```csharp
+public class GraphicsManager : IInitializable, System.IDisposable
+{
+    private readonly SettingsService m_Settings;
+    private FullscreenSetting m_Fullscreen;
+    private VSyncSetting m_VSync;
+
+    [Inject]
+    public GraphicsManager(SettingsService settings)
+    {
+        m_Settings = settings;
+    }
+
+    public void Initialize()
+    {
+        m_Fullscreen = m_Settings.Get<FullscreenSetting>();
+        m_VSync = m_Settings.Get<VSyncSetting>();
+
+        // Apply current values immediately.
+        ApplyFullscreen(m_Fullscreen.Value);
+        ApplyVSync(m_VSync.Value);
+
+        // Stay in sync with future changes.
+        m_Fullscreen.Changed.AddListener(ApplyFullscreen);
+        m_VSync.Changed.AddListener(ApplyVSync);
+    }
+
+    public void Dispose()
+    {
+        m_Fullscreen.Changed.RemoveListener(ApplyFullscreen);
+        m_VSync.Changed.RemoveListener(ApplyVSync);
+    }
+
+    private void ApplyFullscreen(bool fullscreen) =>
+        Screen.fullScreen = fullscreen;
+
+    private void ApplyVSync(bool enabled) =>
+        QualitySettings.vSyncCount = enabled ? 1 : 0;
+}
+```
+
+## Resetting all settings to defaults
+
+Wire `ResetAll()` to a "Restore defaults" button in your settings UI.
+
+```csharp
+public class SettingsMenuController : MonoBehaviour
+{
+    [Inject] private SettingsService m_Settings;
+
+    public void OnRestoreDefaultsClicked()
+    {
+        m_Settings.ResetAll();
+    }
+}
+```

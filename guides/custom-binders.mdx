@@ -1,0 +1,122 @@
+---
+title: 'Custom binders'
+description: 'Implement a custom UI binder to connect any setting type to any UI element.'
+---
+
+Binders are the bridge between a setting value and its UI representation. The system ships with built-in binders for common UI elements, but you can write your own to support custom controls or override the default behavior for specific setting types.
+
+## How the binding lifecycle works
+
+1. A UI element becomes active and calls `BinderRegistry.FindBinder(setting, uiElement)`.
+2. The registry iterates all registered binders by descending `Priority`, returning the first where `CanBind` returns `true`.
+3. `Bind` is called — the binder subscribes to both the setting's `Changed` event and the UI element's input events.
+4. When the element is destroyed or deactivated, `Unbind` is called — subscriptions are cleaned up.
+
+<Steps>
+  <Step title="Create a UI element component">
+    Your UI control must implement `ISettingUIElement`. This is a marker interface that lets the registry identify compatible elements.
+
+    ```csharp
+    using UnityEngine;
+    using SimpleSettings.UI;
+
+    public class ColorPickerUIElement : MonoBehaviour, ISettingUIElement
+    {
+        public ColorPickerControl Picker; // your custom control
+    }
+    ```
+  </Step>
+
+  <Step title="Implement BaseSettingBinder">
+    Extend `BaseSettingBinder<TUIElement, TValue>` and implement the four abstract methods.
+
+    ```csharp
+    using SimpleSettings;
+    using SimpleSettings.UI;
+
+    public class ColorSettingBinder : BaseSettingBinder<ColorPickerUIElement, Color>
+    {
+        private ColorPickerUIElement m_UI;
+        private ISetting<Color> m_Setting;
+
+        protected override void SetupUI()
+        {
+            // Called once when Bind is first invoked.
+            // Use this to configure the control's initial state
+            // (e.g., set label text, configure ranges).
+            m_UI = UIElement as ColorPickerUIElement;
+            m_Setting = Setting as ISetting<Color>;
+        }
+
+        protected override void UpdateUI(Color value)
+        {
+            // Called whenever the setting value changes.
+            // Push the new value into the UI control.
+            m_UI.Picker.SetColor(value);
+        }
+
+        protected override void SubscribeToUI()
+        {
+            // Subscribe to input events on the UI control
+            // so that user interaction updates the setting.
+            m_UI.Picker.OnColorChanged += OnPickerChanged;
+        }
+
+        protected override void UnsubscribeFromUI()
+        {
+            // Mirror of SubscribeToUI — always clean up.
+            m_UI.Picker.OnColorChanged -= OnPickerChanged;
+        }
+
+        private void OnPickerChanged(Color color)
+        {
+            m_Setting.Value = color;
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Register the binder">
+    Register your binder during application startup, before any settings UI is displayed. A static constructor or an installer is a good place.
+
+    ```csharp
+    BinderRegistry.Register(new ColorSettingBinder());
+    ```
+
+    <Note>
+      `BinderRegistry` stores the registered instance directly — it does not use `Activator.CreateInstance` to produce fresh copies. Register a fresh instance for each call if your binder holds mutable state, or make your binder stateless.
+    </Note>
+  </Step>
+
+  <Step title="Override Priority to replace a built-in binder">
+    The default `Priority` is `100`. Built-in binders also use `100`. If you want your binder to be chosen over a built-in for the same types, raise the priority.
+
+    ```csharp
+    public class ColorSettingBinder : BaseSettingBinder<ColorPickerUIElement, Color>
+    {
+        public override int Priority => 150; // wins over default binders
+        // ...
+    }
+    ```
+
+    <Tip>
+      Set `Priority` above `100` to override built-in binders for the same `TUIElement` / `TValue` pair. Set it below `100` to act as a fallback that only activates when no built-in matches.
+    </Tip>
+  </Step>
+</Steps>
+
+## CanBind logic
+
+`BaseSettingBinder` provides a default `CanBind` implementation:
+
+```csharp
+public virtual bool CanBind(ISetting setting, ISettingUIElement uiElement)
+    => setting is ISetting<TValue> && uiElement is TUIElement;
+```
+
+Override it when you need more specific matching — for example, to restrict the binder to a particular setting subclass:
+
+```csharp
+public override bool CanBind(ISetting setting, ISettingUIElement uiElement)
+    => setting is ColorSetting && uiElement is ColorPickerUIElement;
+```

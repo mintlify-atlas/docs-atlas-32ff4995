@@ -1,0 +1,126 @@
+---
+title: 'Creating settings'
+description: 'Step-by-step guide to creating your own settings using the Simple Settings System.'
+---
+
+Each setting is a small, self-contained class that extends a typed base class. The system auto-discovers settings at startup — no manual registration required.
+
+<Steps>
+  <Step title="Choose the right base class">
+    Pick the base class that matches the type of value your setting holds.
+
+    | Base class | Value type | Notes |
+    |---|---|---|
+    | `BoolSetting` | `bool` | Toggles, flags |
+    | `IntSetting` | `int` | Integer values with optional min/max |
+    | `FloatSetting` | `float` | Decimal values with optional min/max |
+    | `StringSetting` | `string` | Free text |
+    | `EnumSetting<T>` | Any `enum` | Dropdown-style choices |
+    | `CommandSetting` | — | Trigger-only, no stored value |
+  </Step>
+
+  <Step title="Define the Key property">
+    Override `Key` with a unique string identifier. Use dot notation to group related settings.
+
+    ```csharp
+    public override string Key => "audio.music_volume";
+    ```
+
+    <Warning>
+      Keys must be unique across your entire project. If two settings share the same key, the second one is ignored and a warning is logged to the console.
+    </Warning>
+  </Step>
+
+  <Step title="Set the DefaultValue property">
+    Override `DefaultValue` with the value used when no saved data exists, or when the setting is reset.
+
+    ```csharp
+    public override int DefaultValue => 50;
+    ```
+  </Step>
+
+  <Step title="Set MinValue and MaxValue (range types only)">
+    For `IntSetting` and `FloatSetting`, override `MinValue` and `MaxValue` to constrain the allowed range.
+
+    ```csharp
+    public override int MinValue => 0;
+    public override int MaxValue => 100;
+    ```
+
+    If you skip these, the setting accepts any value of its type.
+  </Step>
+
+  <Step title="Add the [Metadata] attribute">
+    Decorate the class with `[Metadata]` to provide display information and control how the setting appears in the UI.
+
+    ```csharp
+    [Metadata(
+        displayName: "Music Volume",
+        displayDescription: "Adjust the background music volume",
+        category: SettingCategory.Audio,
+        subCategory: "Volume",
+        uiPreference: UIPreference.SliderStepper,
+        order: 0,
+        isVisible: true,
+        isSavable: true
+    )]
+    ```
+
+    Only `displayName` is required — all other parameters have defaults.
+  </Step>
+
+  <Step title="Build and run">
+    That's it. `SettingsService` auto-registers all settings it finds at initialization. No additional wiring is needed.
+  </Step>
+</Steps>
+
+## Examples
+
+### Boolean setting
+
+```csharp
+[Metadata("Fullscreen Mode", "Enable fullscreen mode",
+    SettingCategory.Graphics, "Display", UIPreference.ToggleGroup, order: 2)]
+public sealed class FullscreenSetting : BoolSetting
+{
+    public override string Key => "graphics.fullscreen";
+    public override bool DefaultValue => true;
+}
+```
+
+### Integer setting with range
+
+```csharp
+[Metadata("Music Volume", "Adjust the background music volume",
+    SettingCategory.Audio, "Volume", UIPreference.SliderStepper)]
+public sealed class MusicVolumeSetting : IntSetting
+{
+    public override string Key => "audio.music_volume";
+    public override int DefaultValue => 50;
+    public override int MinValue => 0;
+    public override int MaxValue => 100;
+}
+```
+
+### Enum setting
+
+```csharp
+public enum GraphicsQuality : byte { Low, Medium, High, Ultra, Custom }
+
+[Metadata("Graphics Quality", "Select the overall graphics quality preset",
+    SettingCategory.Graphics, "Quality", UIPreference.Dropdown, order: 1)]
+public sealed class GraphicsQualitySetting : EnumSetting<GraphicsQuality>
+{
+    public override string Key => "graphics.quality";
+    public override GraphicsQuality DefaultValue => GraphicsQuality.High;
+}
+```
+
+## Checklist
+
+<Check>Class is `sealed` and extends the appropriate base class.</Check>
+<Check>`Key` is unique across the project and uses dot notation.</Check>
+<Check>`DefaultValue` is overridden with a sensible fallback.</Check>
+<Check>`MinValue` and `MaxValue` are set if using `IntSetting` or `FloatSetting`.</Check>
+<Check>`[Metadata]` attribute is applied with at least a display name.</Check>
+<Check>The class is in an assembly scanned by `SettingsService`.</Check>

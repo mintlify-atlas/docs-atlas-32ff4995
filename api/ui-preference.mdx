@@ -1,0 +1,55 @@
+---
+title: "UIPreference"
+description: "Enum hint for which UI widget to use for a setting"
+---
+
+`UIPreference` tells `ItemFactory` and `BinderRegistry` which widget type to use when rendering a setting. It is stored in `Metadata` and set via `[MetadataAttribute]`.
+
+**Namespace:** `Eql.Domain.Common.Settings`  
+**Underlying type:** `byte`
+
+## Values
+
+| Value | Description | Best setting types | Prefab path |
+|---|---|---|---|
+| `Auto` | No explicit preference — the binder registry selects the best match based on the setting's value type. | Any | *(none — see warning below)* |
+| `SliderStepper` | Slider with optional increment/decrement buttons. | `IRangeSetting<int>`, `IRangeSetting<float>` | `settings/items/slider stepper item.prefab` |
+| `Dropdown` | Dropdown list for selecting one option from many. | Enum settings, fixed-option settings | `settings/items/dropdonw item.prefab` |
+| `ToggleGroup` | All options visible simultaneously as toggles. | `bool`, small enums | `settings/items/toggle group item.prefab` |
+| `CheckboxGroup` | Independent checkboxes for multi-select options. | Flag enums, sets of booleans | `settings/items/checkbox group item.prefab` |
+| `InputField` | Free-form text input. | `string` settings | `settings/items/input field item.prefab` |
+| `Button` | Clickable button that triggers an action. | `ICommandSetting` | `settings/items/button item.prefab` |
+
+## How Auto works
+
+When `UIPreference` is `Auto`, `ItemFactory` finds no entry in its prefab path mapping and returns `null`. The `BinderRegistry` is responsible for choosing an appropriate binder before `ItemFactory` is called.
+
+<Warning>
+`UIPreference.Auto` has no associated prefab path. Passing a setting with `UIPreference.Auto` directly to `ItemFactory.CreateAsync` returns `null` and logs a warning. Always let the binder registry resolve `Auto` to a concrete preference, or set an explicit value in `[MetadataAttribute]`.
+</Warning>
+
+## Setting UIPreference in metadata
+
+```csharp
+// Explicit preference
+[Metadata(
+    displayName: "Music Volume",
+    category: SettingCategory.Audio,
+    uiPreference: UIPreference.SliderStepper
+)]
+public sealed class MusicVolumeSetting : IntSetting
+{
+    public override string Key => "audio.music_volume";
+    public override int DefaultValue => 50;
+    public override int MinValue => 0;
+    public override int MaxValue => 100;
+}
+
+// Auto — binder registry decides at runtime
+[Metadata(displayName: "Show FPS")]
+public sealed class ShowFpsSetting : BoolSetting
+{
+    public override string Key => "debug.show_fps";
+    public override bool DefaultValue => false;
+}
+```

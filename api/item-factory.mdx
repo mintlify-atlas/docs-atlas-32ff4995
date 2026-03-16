@@ -1,0 +1,79 @@
+---
+title: "ItemFactory"
+description: "Async factory for creating setting UI items"
+---
+
+`ItemFactory` loads prefab assets and instantiates `BaseItem` UI components for individual settings. It resolves the correct prefab from a `UIPreference`-to-path mapping and calls `BaseItem.Initialize` after instantiation.
+
+**Namespace:** `Eql.Domain.Common.Settings.UI`
+
+## Constructor
+
+<ParamField path="resourceProvider" type="IResourceService" required>
+  Service used to load prefabs from the Resources system.
+</ParamField>
+
+## Prefab path mapping
+
+Each `UIPreference` value maps to a specific Resources prefab path:
+
+| UIPreference | Prefab path |
+|---|---|
+| `SliderStepper` | `settings/items/slider stepper item.prefab` |
+| `Dropdown` | `settings/items/dropdonw item.prefab` |
+| `InputField` | `settings/items/input field item.prefab` |
+| `ToggleGroup` | `settings/items/toggle group item.prefab` |
+| `CheckboxGroup` | `settings/items/checkbox group item.prefab` |
+| `Button` | `settings/items/button item.prefab` |
+
+<Warning>
+`UIPreference.Auto` has no entry in the prefab path mapping. Passing a setting whose resolved `UIPreference` is `Auto` causes `CreateAsync` to find no path and return `null`. Ensure binders or metadata resolve `Auto` to a concrete preference before calling `CreateAsync`.
+</Warning>
+
+## Methods
+
+### CreateAsync(ISetting, Metadata, RectTransform, CancellationToken)
+
+Asynchronously loads the prefab for the setting's UI preference, instantiates it under `parent`, calls `BaseItem.Initialize(setting, metadata)`, and returns the `BaseItem`.
+
+Returns `null` if the `CancellationToken` is cancelled or if no prefab path is found for the setting's `UIPreference`.
+
+<ParamField path="setting" type="ISetting" required>
+  The setting for which to create a UI item.
+</ParamField>
+
+<ParamField path="metadata" type="Metadata" required>
+  Metadata passed to `BaseItem.Initialize` for display configuration.
+</ParamField>
+
+<ParamField path="parent" type="RectTransform" required>
+  The transform under which the instantiated item will be parented.
+</ParamField>
+
+<ParamField path="token" type="CancellationToken" default="default">
+  Token to cancel the async operation. If cancelled, `CreateAsync` returns `null`.
+</ParamField>
+
+```csharp
+BaseItem item = await _itemFactory.CreateAsync(
+    setting,
+    SettingMeta.GetMetadata(setting),
+    containerTransform,
+    destroyCancellationToken
+);
+
+if (item != null)
+    Debug.Log("Item created: " + item.name);
+```
+
+### Release(BaseItem)
+
+Destroys the item's `GameObject` and frees associated resources.
+
+<ParamField path="item" type="BaseItem" required>
+  The item to destroy.
+</ParamField>
+
+```csharp
+_itemFactory.Release(item);
+```

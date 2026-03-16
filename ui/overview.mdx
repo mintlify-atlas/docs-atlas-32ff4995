@@ -1,0 +1,72 @@
+---
+title: "UI system overview"
+description: "How the Simple Settings System maps settings to UI widgets through a three-layer binding architecture."
+---
+
+The UI system connects `ISetting` instances to on-screen widgets using three cooperating layers: UI elements, binders, and the binder registry. Each layer has a single responsibility, making it straightforward to extend or replace any part.
+
+## Architecture
+
+```
+ISetting  ──►  BinderRegistry.FindBinder()
+                      │
+                      ▼
+               ISettingBinder  (selected by Priority + CanBind)
+                      │
+               Bind(setting, uiElement)
+                      │
+               ┌──────┴──────────────────┐
+               ▼                         ▼
+         SetupUI()               SubscribeToUI()
+         UpdateUI(value)         (listens for user input)
+               │
+               ▼
+         setting.Changed ──► OnSettingChanged ──► UpdateUI(newValue)
+```
+
+When a settings panel needs to display a setting, it:
+
+1. Creates or loads a prefab-based UI item via `ItemFactory`.
+2. Asks `BinderRegistry` for a binder that can handle the setting type and UI element type.
+3. Calls `binder.Bind(setting, uiElement)` — the binder then owns the connection for its lifetime.
+4. Calls `binder.Unbind()` when the panel is torn down.
+
+## ISettingUIElement
+
+`ISettingUIElement` is a **marker interface** — it carries no methods or properties. Its only purpose is to let the type system identify MonoBehaviour components that are part of the settings UI layer.
+
+```csharp
+public interface ISettingUIElement { }
+```
+
+Every concrete UI item (`SliderItem`, `DropdownItem`, `ToggleGroupItem`, etc.) implements this interface so that `ISettingBinder.CanBind()` can pattern-match against it.
+
+## UIPreference and prefab selection
+
+Each setting carries a `Metadata` object. The `UIPreference` field on that metadata controls which prefab `ItemFactory` loads from Resources.
+
+```csharp
+[Metadata(
+    displayName: "Master Volume",
+    uiPreference: UIPreference.SliderStepper
+)]
+public class MasterVolumeSetting : FloatSetting { ... }
+```
+
+The factory maintains an internal dictionary of `UIPreference → Resources path`. When `CreateAsync()` is called, it looks up that path, loads the prefab asynchronously, and instantiates it under the provided `RectTransform` parent.
+
+See [UI items](/ui/ui-items) for the full path mapping table.
+
+## In this section
+
+<CardGroup cols={2}>
+  <Card title="UI items" icon="puzzle-piece" href="/ui/ui-items">
+    The six prefab-based widgets and how `ItemFactory` creates and releases them.
+  </Card>
+  <Card title="Binders" icon="link" href="/ui/binders">
+    How to implement `ISettingBinder` and register custom binders.
+  </Card>
+  <Card title="Settings panel" icon="layout-panel-left" href="/ui/settings-panel">
+    Wiring up `DemoSettingsPanel` in a Unity scene.
+  </Card>
+</CardGroup>

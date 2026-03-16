@@ -1,0 +1,56 @@
+---
+title: "SettingCategory"
+description: "Enum defining the category a setting belongs to"
+---
+
+`SettingCategory` groups settings into logical sections. The category value is stored in `Metadata` and used by `SettingsService.GetByCategory` to filter settings for UI panels or other purposes.
+
+**Namespace:** `Eql.Domain.Common.Settings`  
+**Underlying type:** `byte`
+
+## Values
+
+| Value | Intended use |
+|---|---|
+| `General` | Catch-all for settings that do not fit a specific category. Default when no category is specified. |
+| `Control` | Input bindings, sensitivity, control schemes. |
+| `Graphics` | Resolution, quality, frame rate, visual effects. |
+| `Audio` | Volume levels, audio output device, subtitles. |
+| `Language` | Locale, text language, voice-over language. |
+| `Gameplay` | Difficulty, game-specific toggles, accessibility options. |
+| `Term` | Terms of service, legal acknowledgements, EULA. |
+
+## Usage with GetByCategory
+
+```csharp
+// Retrieve all audio settings for an audio panel
+var audioSettings = _settingsService.GetByCategory(SettingCategory.Audio);
+foreach (var setting in audioSettings)
+    Debug.Log(setting.Key);
+
+// Retrieve all graphics settings
+var graphicsSettings = _settingsService.GetByCategory(SettingCategory.Graphics);
+
+// Retrieve general settings
+var generalSettings = _settingsService.GetByCategory(SettingCategory.General);
+```
+
+## Filtering for a settings panel
+
+```csharp
+public void PopulatePanel(SettingCategory category)
+{
+    foreach (var setting in _settingsService.GetByCategory(category))
+    {
+        var meta = SettingMeta.GetMetadata(setting);
+        if (!meta.IsVisible) continue;
+
+        // CreateAsync uses meta.UIPreference to pick the right prefab
+        _itemFactory.CreateAsync(setting, meta, _container, _cts.Token).Forget();
+    }
+}
+```
+
+<Tip>
+If your project needs categories beyond the built-in set, you can extend the enum in a partial class or fork the source. Because the underlying type is `byte`, up to 256 values are supported.
+</Tip>

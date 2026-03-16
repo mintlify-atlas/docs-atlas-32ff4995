@@ -1,0 +1,99 @@
+---
+title: "Metadata"
+description: "Attach display names, descriptions, UI hints, and sort order to any setting using the [Metadata] attribute."
+---
+
+The `[Metadata]` attribute lets you describe a setting without coupling that information to runtime logic. The system reads the attribute once and caches it in the `Metadata` property of `BaseSetting<T>`.
+
+## The \[Metadata\] attribute
+
+Apply it to any concrete setting class:
+
+```csharp
+[Metadata(
+    displayName: "Music Volume",
+    displayDescription: "Adjust the background music volume",
+    category: SettingCategory.Audio,
+    subCategory: "Volume",
+    uiPreference: UIPreference.SliderStepper,
+    order: 10,
+    isVisible: true,
+    isSavable: true
+)]
+public sealed class MusicVolumeSetting : IntSetting
+{
+    public override string Key => "audio.music_volume";
+    public override int DefaultValue => 50;
+    public override int MinValue => 0;
+    public override int MaxValue => 100;
+}
+```
+
+Only `displayName` is required. All other parameters have defaults.
+
+## Attribute parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `displayName` | `string` | — | Human-readable label shown in UI. |
+| `displayDescription` | `string` | `""` | Tooltip or subtitle text. |
+| `category` | `SettingCategory` | `General` | Top-level grouping. See [Categories](/concepts/categories). |
+| `subCategory` | `string` | `""` | Optional secondary grouping within a category. |
+| `uiPreference` | `UIPreference` | `Auto` | Preferred widget type. See [UIPreference](#uipreference-values) below. |
+| `order` | `int` | `0` | Sort position within the category or subcategory. |
+| `isVisible` | `bool` | `true` | Whether the setting appears in UI panels. |
+| `isSavable` | `bool` | `true` | Whether the setting is persisted to storage. |
+
+## The Metadata class
+
+At runtime, all attribute data is available through `BaseSetting<T>.Metadata`:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `DisplayName` | `string` | Human-readable label. |
+| `DisplayDescription` | `string` | Tooltip or subtitle text. |
+| `Category` | `SettingCategory` | Top-level category. |
+| `SubCategory` | `string` | Secondary grouping string. |
+| `UIPreference` | `UIPreference` | Preferred widget type. |
+| `Order` | `int` | Sort position. |
+| `IsVisible` | `bool` | Whether the setting is shown in UI. |
+| `IsSavable` | `bool` | Whether the setting is persisted. |
+
+## Accessing metadata at runtime
+
+Retrieve the setting from `SettingsService`, then read its `Metadata` property:
+
+```csharp
+var setting = _settingsService.Get<MusicVolumeSetting>();
+string label = setting.Metadata.DisplayName;        // "Music Volume"
+bool savable  = setting.Metadata.IsSavable;          // true
+```
+
+You can also retrieve by key and cast:
+
+```csharp
+var setting = _settingsService.Get("audio.music_volume") as BaseSetting<int>;
+Debug.Log(setting.Metadata.Category); // SettingCategory.Audio
+```
+
+## UIPreference values
+
+`UIPreference` tells the `BinderRegistry` which widget type to prefer when binding a setting to a UI element.
+
+| Value | When to use |
+|-------|-------------|
+| `Auto` | Let the binder registry choose the best match based on the setting's value type. |
+| `SliderStepper` | Numeric values with a defined range (`IRangeSetting<T>`). Displays a slider with optional increment buttons. |
+| `Dropdown` | Enum settings or any setting with a fixed set of valid options. |
+| `ToggleGroup` | Boolean or small enum settings where all options should be visible simultaneously. |
+| `CheckboxGroup` | Multi-select flag enums or sets of independent boolean options. |
+| `InputField` | Free-form string input. |
+| `Button` | Command settings that trigger an action rather than store a value. |
+
+<Tip>
+Use `order` to control the sequence in which settings appear within a category panel. Settings with lower `order` values sort first. Settings that share an `order` value fall back to registration order.
+</Tip>
+
+## Settings without the attribute
+
+The attribute is optional. If a class has no `[Metadata]` attribute, `BaseSetting<T>` falls back to sensible defaults: the class name as `DisplayName`, empty description, `SettingCategory.General`, `UIPreference.Auto`, `order 0`, visible, and savable.

@@ -1,0 +1,99 @@
+---
+title: "SettingsService"
+description: "Central registry for all settings in the system"
+---
+
+`SettingsService` is the runtime hub for all settings. It auto-registers every concrete `ISetting` implementation at startup and provides lookup, filtering, and reset operations.
+
+**Namespace:** `Eql.Domain.Common.Settings`  
+**Interface:** `IInitializable` (Zenject)
+
+<Note>
+The `Categories` property is computed lazily from all registered settings. It returns the distinct set of `SettingCategory` values currently in the registry.
+</Note>
+
+## Auto-registration
+
+When Zenject calls `IInitializable.Initialize()`, `SettingsService` scans every assembly in `AppDomain.CurrentDomain.GetAssemblies()`, finds all concrete classes that implement `ISetting`, creates an instance of each via `Activator.CreateInstance`, injects dependencies via `DiContainer.Inject`, and calls the internal `Register` method. You do not need to register settings manually.
+
+```csharp
+// No setup required — just define the class and it is registered automatically.
+[Metadata(displayName: "Music Volume", category: SettingCategory.Audio)]
+public sealed class MusicVolumeSetting : IntSetting
+{
+    public override string Key => "audio.music_volume";
+    public override int DefaultValue => 50;
+    public override int MinValue => 0;
+    public override int MaxValue => 100;
+}
+```
+
+## Properties
+
+<ResponseField name="Categories" type="IReadOnlyCollection&lt;SettingCategory&gt;">
+  The distinct set of `SettingCategory` values that have at least one registered setting. Computed lazily on first access.
+</ResponseField>
+
+## Constructor
+
+<ParamField path="saveService" type="DiContainer" required>
+  The Zenject `DiContainer` used to inject dependencies into auto-registered setting instances.
+</ParamField>
+
+## Methods
+
+### Get\<T\>()
+
+Returns the registered setting instance for type `T`.
+
+```csharp
+var musicVolume = _settingsService.Get<MusicVolumeSetting>();
+Debug.Log(musicVolume.Value); // 50
+```
+
+### Get(string key)
+
+Returns the registered setting with the matching key.
+
+<ParamField path="key" type="string" required>
+  The unique string key of the setting (e.g. `"audio.music_volume"`).
+</ParamField>
+
+```csharp
+ISetting setting = _settingsService.Get("audio.music_volume");
+Debug.Log(setting.Key); // "audio.music_volume"
+```
+
+### GetAll()
+
+Returns all registered settings.
+
+```csharp
+foreach (ISetting setting in _settingsService.GetAll())
+{
+    Debug.Log(setting.Key);
+}
+```
+
+### GetByCategory(SettingCategory)
+
+Returns all settings whose metadata category matches the given value.
+
+<ParamField path="category" type="SettingCategory" required>
+  The category to filter by.
+</ParamField>
+
+```csharp
+var audioSettings = _settingsService.GetByCategory(SettingCategory.Audio);
+foreach (var s in audioSettings)
+    Debug.Log(s.Key);
+```
+
+### ResetAll()
+
+Resets every registered setting to its `DefaultValue`.
+
+```csharp
+// Triggered from a "Restore Defaults" button
+_settingsService.ResetAll();
+```

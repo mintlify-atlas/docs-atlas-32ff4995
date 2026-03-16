@@ -1,0 +1,111 @@
+---
+title: "Auto-registration"
+description: "How SettingsService discovers and registers every ISetting implementation at startup using reflection."
+---
+
+`SettingsService` implements Zenject's `IInitializable` interface. When Zenject calls `Initialize()`, the service scans every loaded assembly for concrete `ISetting` types and registers them — no manual `Register()` calls required.
+
+## How it works
+
+```csharp
+private void AutoRegister()
+{
+    var settingTypes = AppDomain.CurrentDomain
+        .GetAssemblies()
+        .SelectMany(asm => asm.GetTypes())
+        .Where(t => !t.IsAbstract
+                 && !t.IsInterface
+                 && t.IsClass
+                 && typeof(ISetting).IsAssignableFrom(t));
+
+    foreach (var type in settingTypes)
+    {
+        var instance = (ISetting)Activator.CreateInstance(type);
+        m_DiContainer.Inject(instance);
+        Register(type, instance);
+    }
+}
+```
+
+For each qualifying type the service:
+
+1. Creates an instance with `Activator.CreateInstance` (requires a public parameterless constructor).
+2. Calls `m_DiContainer.Inject(instance)` so any `[Inject]`-annotated fields and properties are populated by Zenject.
+3. Stores the instance in two internal dictionaries: one keyed by `Type`, one keyed by `Key` string.
+
+## What qualifies for registration
+
+A type is registered if all four conditions are true:
+
+| Condition | Purpose |
+|-----------|---------|
+| `!t.IsAbstract` | Skips abstract base classes like `BaseSetting<T>`, `IntSetting`, and `FloatSetting`. |
+| `!t.IsInterface` | Skips `ISetting` and `ISetting<T>` themselves. |
+| `t.IsClass` | Excludes structs and other non-class types. |
+| `typeof(ISetting).IsAssignableFrom(t)` | Includes only types that implement `ISetting` directly or through a base class. |
+
+<Warning>
+If your setting class is declared `abstract`, it will not be registered. Ensure every setting you want available at runtime is a `sealed` or otherwise concrete class.
+</Warning>
+
+## Dependency injection on settings
+
+Because `Inject()` is called on each instance, you can use `[Inject]` on fields and properties inside your setting classes:
+
+```csharp
+public sealed class ResolutionSetting : EnumSetting<ResolutionOption>
+{
+    [Inject] private IScreenService _screenService;
+
+    public override string Key => "graphics.resolution";
+    public override ResolutionOption DefaultValue => ResolutionOption.Native;
+
+    protected override void OnChanged(ResolutionOption value)
+    {
+        _screenService.ApplyResolution(value);
+    }
+}
+```
+
+## Complete example
+
+The path from abstract base class to a registered, injectable setting:
+
+<Steps>
+  <Step title="Pick or create a base class">
+    Choose one of the built-in typed base classes (`BoolSetting`, `IntSetting`, `FloatSetting`, `StringSetting`, `EnumSetting<T>`, `CommandSetting`) or extend `BaseSetting<T>` directly.
+  </Step>
+  <Step title="Create a concrete class">
+    Declare a `sealed` class, implement the required abstract members, and optionally add `[Metadata]`:
+
+    ```csharp
+    [Metadata("Show FPS", "Display frames per second counter",
+        SettingCategory.Graphics, uiPreference: UIPreference.ToggleGroup)]
+    public sealed class ShowFpsSetting : BoolSetting
+    {
+        public override string Key => "graphics.show_fps";
+        public override bool DefaultValue => false;
+    }
+    ```
+  </Step>
+  <Step title="Run the game">
+    `SettingsService.Initialize()` is called by Zenject during scene startup. `ShowFpsSetting` is discovered, instantiated, injected, and registered. No additional wiring is needed.
+  </Step>
+  <Step title="Retrieve the setting">
+    Access the registered instance anywhere Zenject can inject `SettingsService`:
+
+    ```csharp
+    bool showFps = _settingsService.Get<ShowFpsSetting>().Value;
+    ```
+  </Step>
+</Steps>
+
+## Duplicate key detection
+
+<Note>
+If two concrete `ISetting` classes return the same `Key` value, `SettingsService` will detect the conflict during registration and log an error. The second setting to be registered is skipped. Ensure every `Key` is unique across your entire project.
+</Note>
+
+## Registration order
+
+Assembly scan order follows `AppDomain.CurrentDomain.GetAssemblies()`, which is non-deterministic. Do not rely on registration order for initialization side effects. Use Zenject's `IInitializable` on dependent systems and declare explicit execution-order bindings if ordering matters.

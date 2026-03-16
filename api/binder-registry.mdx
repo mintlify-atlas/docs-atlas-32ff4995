@@ -1,0 +1,74 @@
+---
+title: "BinderRegistry"
+description: "Static registry for UI binders"
+---
+
+`BinderRegistry` maintains an ordered list of `ISettingBinder` implementations and resolves which binder should handle a given setting and UI element pair.
+
+**Namespace:** `Eql.Domain.Common.Settings.UI.Binders`
+
+## Priority ordering
+
+Binders are stored sorted by their `Priority` property in **descending order**. When `FindBinder` searches the list, the first binder whose `CanBind(setting, uiElement)` returns `true` is selected. Assign higher priority values to more specific binders to ensure they take precedence over general-purpose ones.
+
+## Methods
+
+### Register(ISettingBinder)
+
+Adds a binder to the registry. The list is re-sorted by `Priority` descending after each insertion.
+
+<ParamField path="binder" type="ISettingBinder" required>
+  The binder instance to register.
+</ParamField>
+
+```csharp
+BinderRegistry.Register(new SliderStepperBinder());
+BinderRegistry.Register(new DropdownBinder());
+```
+
+### FindBinder(ISetting, ISettingUIElement)
+
+Finds the highest-priority binder that can handle the given setting and UI element, then returns a **new instance** of that binder type via `Activator.CreateInstance`.
+
+<ParamField path="setting" type="ISetting" required>
+  The setting to bind.
+</ParamField>
+
+<ParamField path="uiElement" type="ISettingUIElement" required>
+  The UI element that will display the setting.
+</ParamField>
+
+<Note>
+`FindBinder` returns a **new instance** each time via `Activator.CreateInstance`. The registered instance is used only for the `CanBind` check. Do not rely on shared state in the registered binder object.
+</Note>
+
+```csharp
+ISettingBinder binder = BinderRegistry.FindBinder(setting, uiElement);
+if (binder != null)
+    binder.Bind(setting, uiElement);
+```
+
+### GetAll()
+
+Returns all registered binders in priority-descending order.
+
+```csharp
+foreach (ISettingBinder b in BinderRegistry.GetAll())
+    Debug.Log($"{b.GetType().Name} (priority {b.Priority})");
+```
+
+### Clear()
+
+Removes all registered binders.
+
+<Warning>
+`Clear()` is intended for unit tests. Calling it in production code removes all binders and prevents the UI from binding any settings until binders are re-registered.
+</Warning>
+
+```csharp
+[TearDown]
+public void TearDown()
+{
+    BinderRegistry.Clear();
+}
+```

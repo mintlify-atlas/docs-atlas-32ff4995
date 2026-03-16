@@ -1,0 +1,68 @@
+---
+title: 'IRangeSetting'
+description: 'Interface for settings that constrain their value to a minimum/maximum range.'
+keywords: ['IRangeSetting', 'interface', 'range', 'min', 'max', 'API reference']
+---
+
+`IRangeSetting<T>` extends [`ISetting<T>`](/api/isetting) with `MinValue` and `MaxValue` constraints. Any setting whose value must stay within a numeric range should implement this interface.
+
+## Namespace
+
+```csharp
+namespace Eql.Common.Services.Settings
+```
+
+## Interface definition
+
+```csharp IRangeSetting.cs
+public interface IRangeSetting<T> : ISetting<T>
+    where T : IComparable<T>
+{
+    T MinValue { get; }
+    T MaxValue { get; }
+}
+```
+
+## Type constraint
+
+`T` must implement `IComparable<T>` so that values can be ordered and clamped. The built-in numeric types (`int`, `float`, `double`) all satisfy this constraint.
+
+## Members
+
+<ResponseField name="MinValue" type="T" required>
+  The inclusive lower bound for the setting value. Values below this bound are clamped up to `MinValue`.
+</ResponseField>
+
+<ResponseField name="MaxValue" type="T" required>
+  The inclusive upper bound for the setting value. Values above this bound are clamped down to `MaxValue`.
+</ResponseField>
+
+<Note>
+  `IRangeSetting<T>` declares the range contract only. Clamping behaviour is enforced by [`BaseRangeSetting<T>`](/api/base-range-setting), which overrides `Value.set` to apply the clamp before delegating to the base class.
+</Note>
+
+## Inheritance chain
+
+```
+IRangeSetting<T> → ISetting<T> → ISetting
+```
+
+## Implementation example
+
+The following shows a direct implementation. In practice, extend [`BaseRangeSetting<T>`](/api/base-range-setting) instead.
+
+```csharp
+using Eql.Common.Services.Settings;
+
+public class BrightnessSetting : BaseRangeSetting<float>
+{
+    public override string Key => "display.brightness";
+    public override float DefaultValue => 0.8f;
+    public override float MinValue => 0.0f;
+    public override float MaxValue => 1.0f;
+}
+```
+
+<Tip>
+  When you need to display a slider in the settings UI, pair an `IRangeSetting<T>` implementation with a slider `ISettingUIElement` and a matching binder that reads `MinValue`/`MaxValue` to configure the slider bounds.
+</Tip>

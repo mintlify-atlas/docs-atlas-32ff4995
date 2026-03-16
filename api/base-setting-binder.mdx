@@ -1,0 +1,157 @@
+---
+title: 'BaseSettingBinder'
+description: 'Generic abstract base class for binders. Handles casting, event wiring, and teardown so subclasses only need to implement UI-specific logic.'
+keywords: ['BaseSettingBinder', 'binder', 'base class', 'abstract', 'UI', 'API reference']
+---
+
+`BaseSettingBinder<TUIElement, TValue>` implements [`ISettingBinder`](/api/isetting-binder) and takes care of type-checking, casting, event subscription, and unbinding. Subclasses only need to implement the four abstract hooks.
+
+## Namespace
+
+```csharp
+namespace Eql.Domain.Common.Settings.UI.Binders
+```
+
+## Inheritance
+
+```
+YourBinder → BaseSettingBinder<TUIElement, TValue> → ISettingBinder
+```
+
+## Class definition
+
+```csharp BaseSettingBinder.cs
+public abstract class BaseSettingBinder<TUIElement, TValue> : ISettingBinder
+    where TUIElement : class, ISettingUIElement
+{
+    public virtual int Priority => 100;
+
+    protected TUIElement uiElement;
+    protected ISetting<TValue> setting;
+
+    public virtual bool CanBind(ISetting setting, ISettingUIElement uiElement)
+        => setting is ISetting<TValue> && uiElement is TUIElement;
+
+    public void Bind(ISetting setting, ISettingUIElement baseUIElement) { ... }
+    public virtual void Unbind() { ... }
+
+    protected abstract void SetupUI();
+    protected abstract void UpdateUI(TValue value);
+    protected abstract void SubscribeToUI();
+    protected abstract void UnsubscribeFromUI();
+}
+```
+
+## Type parameters
+
+<ResponseField name="TUIElement" type="class, ISettingUIElement">
+  The concrete UI element type this binder handles. Must implement [`ISettingUIElement`](/api/isetting-ui-element).
+</ResponseField>
+
+<ResponseField name="TValue" type="any">
+  The value type of the setting this binder handles. Determines which `ISetting<T>` specialization is accepted.
+</ResponseField>
+
+## Concrete members
+
+<ResponseField name="Priority" type="int">
+  Default value: `100`. Override to raise or lower precedence relative to other binders that handle the same type pair.
+</ResponseField>
+
+<ResponseField name="uiElement" type="TUIElement">
+  Protected reference to the bound UI element. Set during `Bind`, cleared during `Unbind`.
+</ResponseField>
+
+<ResponseField name="setting" type="ISetting<TValue>">
+  Protected reference to the bound setting. Set during `Bind`, cleared during `Unbind`.
+</ResponseField>
+
+<ResponseField name="CanBind" type="bool">
+  Returns `true` when `setting is ISetting<TValue>` and `uiElement is TUIElement`. Override for additional conditions.
+</ResponseField>
+
+<ResponseField name="Bind" type="void">
+  Casts the arguments to `TUIElement` and `ISetting<TValue>`, stores them in the protected fields, then:
+
+  1. Calls `SetupUI()` — configure the UI element (set range, options, etc.).
+  2. Calls `UpdateUI(setting.Value)` — apply the current setting value to the UI.
+  3. Subscribes `setting.Changed` → `UpdateUI`.
+  4. Calls `SubscribeToUI()` — subscribe to UI interaction events.
+</ResponseField>
+
+<ResponseField name="Unbind" type="void">
+  1. Removes `UpdateUI` from `setting.Changed`.
+  2. Calls `UnsubscribeFromUI()`.
+  3. Nulls `setting` and `uiElement`.
+</ResponseField>
+
+## Abstract members (must implement)
+
+<ParamField path="SetupUI" type="void" required>
+  Called once during `Bind`, before the initial value is applied. Use this to configure the UI element — for example, setting slider `min`/`max` from `IRangeSetting`, or populating a dropdown with enum options.
+</ParamField>
+
+<ParamField path="UpdateUI" type="void" required>
+  Called with the latest setting value whenever `Changed` fires, and also once during `Bind` for initial sync. Update the UI control to reflect the value.
+
+  <ParamField path="value" type="TValue" required>
+    The new setting value.
+  </ParamField>
+</ParamField>
+
+<ParamField path="SubscribeToUI" type="void" required>
+  Subscribe to UI interaction events (e.g., `slider.onValueChanged`, `toggle.onValueChanged`). When the user changes the control, write the new value back to `setting.Value`.
+</ParamField>
+
+<ParamField path="UnsubscribeFromUI" type="void" required>
+  Remove all listeners registered in `SubscribeToUI`. Called during `Unbind`.
+</ParamField>
+
+## Implementation example
+
+The following binder connects an `ISetting<float>` to a `SliderUIElement`.
+
+```csharp
+using Eql.Domain.Common.Settings.UI.Binders;
+using UnityEngine.UI;
+
+public class SliderFloatBinder : BaseSettingBinder<SliderUIElement, float>
+{
+    protected override void SetupUI()
+    {
+        // Configure slider range if the setting declares one
+        if (setting is IRangeSetting<float> range)
+        {
+            uiElement.SetRange(range.MinValue, range.MaxValue);
+        }
+    }
+
+    protected override void UpdateUI(float value)
+    {
+        uiElement.SetValue(value);
+    }
+
+    protected override void SubscribeToUI()
+    {
+        uiElement.Slider.onValueChanged.AddListener(OnSliderChanged);
+    }
+
+    protected override void UnsubscribeFromUI()
+    {
+        uiElement.Slider.onValueChanged.RemoveListener(OnSliderChanged);
+    }
+
+    private void OnSliderChanged(float value)
+    {
+        setting.Value = value;
+    }
+}
+```
+
+<Note>
+  `Bind` and `Unbind` are not virtual. Call order within these methods is fixed. Override `CanBind`, `Priority`, or `Unbind` when you need to change binder selection or teardown behavior.
+</Note>
+
+<Warning>
+  `Unbind` is `virtual` and can be overridden, but always call `base.Unbind()` to ensure the `Changed` listener is removed and references are nulled.
+</Warning>

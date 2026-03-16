@@ -1,0 +1,137 @@
+---
+title: "Installation"
+description: "Add Simple Settings System and its dependencies to a Unity project."
+---
+
+## Prerequisites
+
+Before installing, confirm your project meets the following requirements:
+
+- **Unity 2021.3 LTS or later** — the system uses C# 9 features and Unity's `UnityEvent<T>` API.
+- **Zenject (Extenject)** — required for dependency injection. The system will not compile without it.
+- **TextMeshPro** — required for the demo UI panel. Already included in Unity 2022+; install manually on older versions.
+- **UniTask** — required for async prefab loading in `ItemFactory`.
+
+<Warning>
+  Zenject is a hard dependency. Every `SettingsService` binding and injection site relies on Zenject's container. You must install Zenject and create a `ProjectContext` asset before the system will work.
+</Warning>
+
+## Installation steps
+
+<Steps>
+  <Step title="Install Zenject">
+    Download the latest **Extenject** `.unitypackage` from the [Extenject GitHub releases page](https://github.com/Mathijs-Bakker/Extenject/releases) and import it into your Unity project via **Assets > Import Package > Custom Package**.
+
+    After importing, create a `ProjectContext` asset if one does not already exist:
+
+    1. In the **Project** window, navigate to a `Resources` folder (create one at `Assets/Resources` if needed).
+    2. Right-click and choose **Create > Zenject > ProjectContext**.
+
+    The `ProjectContext` asset must live inside a `Resources` folder so Zenject can load it at startup.
+  </Step>
+
+  <Step title="Install TextMeshPro">
+    If you are on Unity 2021 or 2022 and TextMeshPro is not already present:
+
+    1. Open **Window > Package Manager**.
+    2. Select **Unity Registry** from the source dropdown.
+    3. Search for **TextMeshPro** and click **Install**.
+    4. When prompted, import the **TMP Essential Resources**.
+  </Step>
+
+  <Step title="Install UniTask">
+    UniTask is distributed as a UPM package via a git URL. Add it by editing `Packages/manifest.json` directly.
+
+    <Tip>
+      Using the git URL approach means you always get the latest UniTask release by removing the package and re-adding it — no separate download required.
+    </Tip>
+
+    Open `Packages/manifest.json` in a text editor and add the following entry inside the `dependencies` object:
+
+    ```json Packages/manifest.json
+    {
+      "dependencies": {
+        "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
+        ...
+      }
+    }
+    ```
+
+    Save the file. Unity will resolve and download the package automatically when it recompiles.
+  </Step>
+
+  <Step title="Copy the system scripts into your project">
+    Copy the Simple Settings System source files into your Unity project's `Assets` folder. A recommended layout:
+
+    ```
+    Assets/
+    └── SimpleSettings/
+        ├── Runtime/
+        │   ├── Core/          ← ISetting, BaseSetting, SettingsService, ...
+        │   ├── Data/          ← Metadata, SettingCategory, UIPreference, ...
+        │   ├── SettingTypes/  ← BoolSetting, IntSetting, EnumSetting<T>, ...
+        │   └── UI/            ← ISettingBinder, BinderRegistry, ItemFactory, ...
+        └── Demo/              ← DemoSettingsPanel and example settings
+    ```
+
+    Unity will compile the scripts automatically on import. Fix any assembly definition (`.asmdef`) references if your project uses them.
+  </Step>
+
+  <Step title="Configure the ProjectContext installer">
+    Open your `ProjectContext` asset and add (or create) a `ScriptableObjectInstaller` that binds `SettingsService`.
+
+    ```csharp ProjectContext.cs
+    using SimpleSettings;
+    using Zenject;
+    using UnityEngine;
+
+    [CreateAssetMenu(fileName = "ProjectContext", menuName = "Eql/ProjectContext")]
+    public sealed class ProjectContext : ScriptableObjectInstaller
+    {
+        public override void InstallBindings()
+        {
+            Container.BindInterfacesAndSelfTo<SimpleResourceService>().AsSingle();
+            Container.BindInterfacesAndSelfTo<SettingsService>().AsSingle().NonLazy();
+        }
+    }
+    ```
+
+    Assign this installer to your `ProjectContext` asset in the Inspector under **Scriptable Object Installers**.
+
+    <Note>
+      `NonLazy()` ensures `SettingsService.Initialize()` runs at startup, triggering the reflection scan that auto-registers all `ISetting` implementations before any other game code runs.
+    </Note>
+  </Step>
+
+  <Step title="Verify the installation">
+    Confirm everything is wired correctly:
+
+    1. Open any scene and enter **Play Mode**.
+    2. In the Console, confirm there are no missing-assembly or missing-type errors.
+    3. Create a minimal test setting (see [Quickstart](/quickstart)) and call `settingsService.Get<YourSetting>()` — it should return a valid instance without throwing.
+
+    If `SettingsService` throws a `NullReferenceException` on `Initialize()`, the most common causes are:
+    - The `ProjectContext` asset is not in a `Resources` folder.
+    - The installer was not added to the **Scriptable Object Installers** list on the `ProjectContext` asset.
+    - `SimpleResourceService` binding is missing from `InstallBindings()`.
+  </Step>
+</Steps>
+
+## Dependency summary
+
+| Package | Version | Install method |
+|---------|---------|----------------|
+| Zenject (Extenject) | Latest stable | `.unitypackage` from GitHub |
+| TextMeshPro | Bundled / UPM | Unity Package Manager |
+| UniTask | Latest | UPM git URL |
+
+## Next steps
+
+<Columns cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Create your first setting and read it at runtime.
+  </Card>
+  <Card title="Core concepts" icon="book" href="/concepts/settings-overview">
+    Learn how auto-registration, metadata, and categories work.
+  </Card>
+</Columns>

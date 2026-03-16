@@ -1,0 +1,40 @@
+---
+title: "SettingMeta"
+description: "Helper for retrieving setting metadata"
+---
+
+`SettingMeta` is a static utility class that reads `[MetadataAttribute]` from a setting's type and returns a `Metadata` object. Results are cached by `setting.Key` so the attribute is reflected only once per setting.
+
+**Namespace:** `Eql.Domain.Common.Settings`
+
+## Methods
+
+### GetMetadata(ISetting)
+
+Returns the `Metadata` for the given setting.
+
+<ParamField path="setting" type="ISetting" required>
+  The setting whose metadata you want to retrieve.
+</ParamField>
+
+**Resolution order:**
+
+1. Check the internal cache keyed by `setting.Key`. Return the cached value if present.
+2. Reflect the setting's type for a `[MetadataAttribute]`. If found, use `attribute.Metadata`.
+3. If no attribute exists, create `new Metadata(setting.Key)` as the fallback.
+4. Store the result in the cache and return it.
+
+<Note>
+The fallback `new Metadata(setting.Key)` uses the key string as the display name and applies all other default values: empty description, `SettingCategory.General`, `UIPreference.Auto`, `order 0`, visible, and savable.
+</Note>
+
+```csharp
+// Setting with [MetadataAttribute]
+Metadata meta = SettingMeta.GetMetadata(mySetting);
+Debug.Log(meta.DisplayName);    // value from attribute
+Debug.Log(meta.Category);       // value from attribute
+
+// Setting without [MetadataAttribute]
+Metadata fallback = SettingMeta.GetMetadata(unlabelledSetting);
+Debug.Log(fallback.DisplayName); // falls back to setting.Key
+```

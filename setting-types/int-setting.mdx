@@ -1,0 +1,81 @@
+---
+title: 'IntSetting'
+description: 'A setting type for integer values with optional min/max range clamping.'
+keywords: ['int', 'integer', 'range', 'clamp', 'setting', 'IntSetting']
+---
+
+`IntSetting` is the base class for settings that hold an `int` value. It extends `BaseRangeSetting<int>`, which automatically clamps the value to a configured min/max range whenever it is set.
+
+## Class definition
+
+```csharp IntSetting.cs
+public abstract class IntSetting : BaseRangeSetting<int>
+{
+    public override int MinValue => int.MinValue;
+    public override int MaxValue => int.MaxValue;
+}
+```
+
+The base clamping logic in `BaseRangeSetting<T>` is:
+
+```csharp BaseRangeSetting.cs
+public override T Value
+{
+    get => base.Value;
+    set
+    {
+        if (value.CompareTo(MinValue) < 0) value = MinValue;
+        if (value.CompareTo(MaxValue) > 0) value = MaxValue;
+        base.Value = value;
+    }
+}
+```
+
+## Inheritance chain
+
+```
+YourSetting → IntSetting → BaseRangeSetting<int> → BaseSetting<int> → ISetting<int> → ISetting
+```
+
+## Example implementation
+
+The following is the music volume setting from `AudioSettings.cs`, constrained to 0–100:
+
+```csharp AudioSettings.cs
+[Metadata("Music Volume", "Adjust the background music volume",
+    SettingCategory.Audio, "Volume", UIPreference.SliderStepper)]
+public sealed class MusicVolumeSetting : IntSetting
+{
+    public override string Key => "audio.music_volume";
+    public override int DefaultValue => 50;
+    public override int MinValue => 0;
+    public override int MaxValue => 100;
+}
+```
+
+## Reading, writing, and subscribing
+
+```csharp
+// Read the current value
+int volume = musicVolumeSetting.Value;
+
+// Write a new value — automatically clamped to [0, 100]
+musicVolumeSetting.Value = 120; // stored as 100
+musicVolumeSetting.Value = -5;  // stored as 0
+
+// Subscribe to changes
+musicVolumeSetting.OnValueChanged += (oldValue, newValue) =>
+{
+    AudioMixer.SetVolume(newValue);
+};
+```
+
+## Notes
+
+<Note>
+  The default `MinValue` is `int.MinValue` and the default `MaxValue` is `int.MaxValue`. Override both properties in your concrete class to constrain the accepted range.
+</Note>
+
+<Tip>
+  The typical `UIPreference` for an `IntSetting` is `SliderStepper` (for continuous ranges like volume) or `Dropdown` (for small discrete sets of values).
+</Tip>
