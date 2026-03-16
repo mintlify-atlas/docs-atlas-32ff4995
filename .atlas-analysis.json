@@ -1,0 +1,144 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Simple Settings System",
+  "projectDescription": "A simple extensible settings system for Unity with automatic registration, UI binding, and metadata support.",
+  "theme": "mint",
+  "primaryColor": "#94cb04",
+  "lightColor": "#545454",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/settings-overview",
+              "concepts/metadata",
+              "concepts/categories",
+              "concepts/auto-registration"
+            ]
+          },
+          {
+            "group": "Setting Types",
+            "pages": [
+              "setting-types/bool-setting",
+              "setting-types/int-setting",
+              "setting-types/float-setting",
+              "setting-types/string-setting",
+              "setting-types/enum-setting",
+              "setting-types/command-setting"
+            ]
+          },
+          {
+            "group": "UI System",
+            "pages": [
+              "ui/overview",
+              "ui/ui-items",
+              "ui/binders",
+              "ui/settings-panel"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/creating-settings",
+              "guides/custom-binders",
+              "guides/settings-service",
+              "guides/demo-settings"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Interfaces",
+            "pages": [
+              "api/isetting",
+              "api/irange-setting",
+              "api/isetting-binder",
+              "api/isetting-ui-element"
+            ]
+          },
+          {
+            "group": "Base Classes",
+            "pages": [
+              "api/base-setting",
+              "api/base-range-setting",
+              "api/base-setting-binder"
+            ]
+          },
+          {
+            "group": "Services",
+            "pages": [
+              "api/settings-service",
+              "api/binder-registry",
+              "api/setting-meta",
+              "api/item-factory"
+            ]
+          },
+          {
+            "group": "Data",
+            "pages": [
+              "api/metadata",
+              "api/metadata-attribute",
+              "api/setting-category",
+              "api/ui-preference"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Automatic setting registration via reflection — no manual wiring required",
+    "Typed setting base classes for bool, int, float, string, enum, and command types",
+    "Range clamping for numeric settings with configurable min/max values",
+    "Metadata attribute system for display names, descriptions, categories, and UI hints",
+    "Automatic UI binding system that maps settings to appropriate UI elements",
+    "Priority-based binder registry for custom UI element overrides",
+    "Category and subcategory organization for settings panels",
+    "Zenject DI integration for dependency injection",
+    "Thread-safe value access with rollback on failed saves",
+    "UniTask-based async prefab loading for UI items"
+  ],
+  "publicApiSurface": [
+    "ISetting — base interface for all settings",
+    "ISetting<T> — generic typed setting interface",
+    "IRangeSetting<T> — interface for settings with min/max constraints",
+    "BaseSetting<T> — abstract base class for all settings",
+    "BaseRangeSetting<T> — abstract base class for range-constrained settings",
+    "BoolSetting — abstract boolean setting",
+    "IntSetting — abstract integer setting with range",
+    "FloatSetting — abstract float setting with range",
+    "StringSetting — abstract string setting",
+    "EnumSetting<TEnum> — abstract enum setting",
+    "CommandSetting — abstract command/action setting",
+    "VoidSetting — abstract void (no-value) setting",
+    "SettingsService.Get<T>() — retrieve setting by type",
+    "SettingsService.Get(string key) — retrieve setting by key",
+    "SettingsService.GetAll() — retrieve all registered settings",
+    "SettingsService.GetByCategory(SettingCategory) — filter by category",
+    "SettingsService.ResetAll() — reset all settings to defaults",
+    "SettingMeta.GetMetadata(ISetting) — retrieve metadata for a setting",
+    "MetadataAttribute — attribute to declare setting display/category/UI metadata",
+    "BinderRegistry.Register(ISettingBinder) — register a UI binder",
+    "BinderRegistry.FindBinder(ISetting, ISettingUIElement) — resolve a binder",
+    "ISettingBinder — interface for UI binding implementations",
+    "BaseSettingBinder<TUIElement, TValue> — base class for custom binders",
+    "ItemFactory.CreateAsync() — async creation of setting UI items",
+    "SettingCategory — enum: General, Control, Graphics, Audio, Language, Gameplay, Term",
+    "UIPreference — enum: Auto, SliderStepper, Dropdown, ToggleGroup, CheckboxGroup, InputField, Button"
+  ]
+}
